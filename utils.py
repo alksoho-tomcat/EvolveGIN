@@ -6,12 +6,14 @@ import time
 import random
 import math
 
+# 最後の列を使ってパディング
 def pad_with_last_col(matrix,cols):
     out = [matrix]
     pad = [matrix[:,[-1]]] * (cols - matrix.size(1))
     out.extend(pad)
     return torch.cat(out,dim=1)
 
+# 最後の値を使ってパディング
 def pad_with_last_val(vect,k):
     device = 'cuda' if vect.is_cuda else 'cpu'
     pad = torch.ones(k - vect.size(0),
@@ -21,7 +23,7 @@ def pad_with_last_val(vect,k):
     return vect
 
 
-
+# 疎なテンソルを準備
 def sparse_prepare_tensor(tensor,torch_size, ignore_batch_dim = True):
     if ignore_batch_dim:
         tensor = sp_ignore_batch_dim(tensor)
@@ -30,24 +32,29 @@ def sparse_prepare_tensor(tensor,torch_size, ignore_batch_dim = True):
                                 torch_size = torch_size)
     return tensor
 
+# バッチの次元を無視
 def sp_ignore_batch_dim(tensor_dict):
     tensor_dict['idx'] = tensor_dict['idx'][0]
     tensor_dict['vals'] = tensor_dict['vals'][0]
     return tensor_dict
 
+# 時間に沿ったアグリゲーション
 def aggregate_by_time(time_vector,time_win_aggr):
         time_vector = time_vector - time_vector.min()
         time_vector = time_vector // time_win_aggr
         return time_vector
 
+# 時間順にソート
 def sort_by_time(data,time_col):
         _, sort = torch.sort(data[:,time_col])
         data = data[sort]
         return data
 
+# 疎テンソルを 表示
 def print_sp_tensor(sp_tensor,size):
     print(torch.sparse.FloatTensor(sp_tensor['idx'].t(),sp_tensor['vals'],torch.Size([size,size])).to_dense())
 
+# パラメータをリセット
 def reset_param(t):
     stdv = 2. / math.sqrt(t.size(0))
     t.data.uniform_(-stdv,stdv)
@@ -72,6 +79,7 @@ def make_sparse_tensor(adj,tensor_type,torch_size):
     else:
         raise NotImplementedError('only make floats or long sparse tensors')
 
+# 疎なテンソル?をディクショナリに変換
 def sp_to_dict(sp_tensor):
     return  {'idx': sp_tensor._indices().t(),
              'vals': sp_tensor._values()}
@@ -83,6 +91,7 @@ class Namespace(object):
     def __init__(self, adict):
         self.__dict__.update(adict)
 
+# シード値をセット
 def set_seeds(rank):
     seed = int(time.time())+rank
     np.random.seed(seed)
@@ -92,6 +101,7 @@ def set_seeds(rank):
     torch.cuda.manual_seed_all(seed)
 
 
+# ランダムなパラメータ値を設定
 def random_param_value(param, param_min, param_max, type='int'):
     if str(param) is None or str(param).lower()=='none':
         if type=='int':
@@ -104,12 +114,14 @@ def random_param_value(param, param_min, param_max, type='int'):
     else:
         return param
 
+# データをロード
 def load_data(file):
     with open(file) as file:
         file = file.read().splitlines()
     data = torch.tensor([[float(r) for r in row.split(',')] for row in file[1:]])
     return data
 
+# tarファイルからデータをロード
 def load_data_from_tar(file, tar_archive, replace_unknow=False, starting_line=1, sep=',', type_fn = float, tensor_const = torch.DoubleTensor):
     f = tar_archive.extractfile(file)
     lines = f.read()#
@@ -125,11 +137,13 @@ def load_data_from_tar(file, tar_archive, replace_unknow=False, starting_line=1,
     #print (file,'data size', data.size())
     return data
 
+# パーサーを設定
 def create_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--config_file',default='experiments/parameters_example.yaml', type=argparse.FileType(mode='r'), help='optional, yaml file containing parameters to be used, overrides command line parameters')
     return parser
 
+# 設定をパース
 def parse_args(parser):
     args = parser.parse_args()
     if args.config_file:

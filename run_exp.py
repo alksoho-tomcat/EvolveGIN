@@ -33,6 +33,7 @@ import trainer as tr
 import logger
 
 
+# パラメータをintかlogscaleに変更
 def random_param_value(param, param_min, param_max, type='int'):
 	if str(param) is None or str(param).lower()=='none':
 		if type=='int':
@@ -45,6 +46,7 @@ def random_param_value(param, param_min, param_max, type='int'):
 	else:
 		return param
 
+# モデルのハイパーパラメータを設定(モデルを決定する檀家にも含む) yamlで設定したもの?
 def build_random_hyper_params(args):
 	if args.model == 'all':
 		model_types = ['gcn', 'egcn_o', 'egcn_h', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
@@ -85,6 +87,8 @@ def build_random_hyper_params(args):
 	args.gcn_parameters['cls_feats']=random_param_value(args.gcn_parameters['cls_feats'], args.gcn_parameters['cls_feats_min'], args.gcn_parameters['cls_feats_max'], type='int')
 	return args
 
+
+# データセットを選択 yamlで選択
 def build_dataset(args):
 	if args.data == 'bitcoinotc' or args.data == 'bitcoinalpha':
 		if args.data == 'bitcoinotc':
@@ -117,6 +121,7 @@ def build_dataset(args):
 	else:
 		raise NotImplementedError('only arxiv has been implemented')
 
+# タスクを選択 yamlで選択
 def build_tasker(args,dataset):
 	if args.task == 'link_pred':
 		return lpt.Link_Pred_Tasker(args,dataset)
@@ -130,6 +135,7 @@ def build_tasker(args,dataset):
 	else:
 		raise NotImplementedError('still need to implement the other tasks')
 
+# モデルを作成(定義はmodels.py egcn_h.py,egcn_o.py) yamlで選択
 def build_gcn(args,tasker):
 	gcn_args = u.Namespace(args.gcn_parameters)
 	gcn_args.feats_per_node = tasker.feats_per_node
@@ -160,6 +166,7 @@ def build_gcn(args,tasker):
 		else:
 			raise NotImplementedError('need to finish modifying the models')
 
+# タスクの分析の詳細
 def build_classifier(args,tasker):
 	if 'node_cls' == args.task or 'static_node_cls' == args.task:
 		mult = 1
@@ -174,10 +181,15 @@ def build_classifier(args,tasker):
 
 	return mls.Classifier(args,in_features = in_feats, out_features = tasker.num_classes).to(args.device)
 
+
+# 実行
 if __name__ == '__main__':
+	# yamlのパーサー
 	parser = u.create_parser()
+	# yamlで設定した項目を取得
 	args = u.parse_args(parser)
 
+	# PyTorch上でできる分散アプリケーションのセットアップ
 	global rank, wsize, use_cuda
 	args.use_cuda = (torch.cuda.is_available() and args.use_cuda)
 	args.device='cpu'
@@ -198,6 +210,8 @@ if __name__ == '__main__':
 		print(('MPI backend not preset. Set process rank to {} (out of {})'.format(rank,
 																				   wsize)))
 
+
+	# 乱数シード固定
 	if args.seed is None and args.seed!='None':
 		seed = 123+rank#int(time.time())+rank
 	else:
@@ -212,21 +226,28 @@ if __name__ == '__main__':
 	args.wsize=wsize
 
 	# Assign the requested random hyper parameters
+	# リクエストされたランダムハイパーパラメータをアサイン
 	args = build_random_hyper_params(args)
 
 	#build the dataset
+	# データセットを構築
 	dataset = build_dataset(args)
 	#build the tasker
+	# タスク設定
 	tasker = build_tasker(args,dataset)
 	#build the splitter
+	# スプリッターを設定
 	splitter = sp.splitter(args,tasker)
 	#build the models
+	# モデル作成
 	gcn = build_gcn(args, tasker)
 	classifier = build_classifier(args,tasker)
 	#build a loss
+	# 損失関数を作成
 	cross_entropy = ce.Cross_Entropy(args,dataset).to(args.device)
 
 	#trainer
+	# 学習環境を作成(trainer.py)
 	trainer = tr.Trainer(args,
 						 splitter = splitter,
 						 gcn = gcn,
@@ -234,5 +255,5 @@ if __name__ == '__main__':
 						 comp_loss = cross_entropy,
 						 dataset = dataset,
 						 num_classes = tasker.num_classes)
-
+	# 実行
 	trainer.train()

@@ -31,6 +31,7 @@ ECOLS = u.Namespace({'source': 0,
 
 #     return hot_2
 
+# one-hotエンコーディングした特徴量を取得
 def get_1_hot_deg_feats(adj,max_deg,num_nodes):
     #For now it'll just return a 2-hot vector
     new_vals = torch.ones(adj['idx'].size(0))
@@ -48,6 +49,7 @@ def get_1_hot_deg_feats(adj,max_deg,num_nodes):
              'vals': degs_out._values()}
     return hot_1
 
+# 最大次元数を取得
 def get_max_degs(args,dataset,all_window=False):
     max_deg_out = []
     max_deg_in = []
@@ -75,6 +77,7 @@ def get_max_degs(args,dataset,all_window=False):
     
     return max_deg_out, max_deg_in
 
+# 静的な最大次元数を取得
 def get_max_degs_static(num_nodes, adj_matrix):
     cur_out, cur_in = get_degree_vects(adj_matrix, num_nodes)
     max_deg_out = int(cur_out.max().item()) + 1
@@ -83,12 +86,14 @@ def get_max_degs_static(num_nodes, adj_matrix):
     return max_deg_out, max_deg_in
 
 
+# ノードの次数を取得
 def get_degree_vects(adj,num_nodes):
     adj = u.make_sparse_tensor(adj,'long',[num_nodes])
     degs_out = adj.matmul(torch.ones(num_nodes,1,dtype = torch.long))
     degs_in = adj.t().matmul(torch.ones(num_nodes,1,dtype = torch.long))
     return degs_out, degs_in
 
+# 疎な隣接行列を取得
 def get_sp_adj(edges,time,weighted,time_window):
     idx = edges['idx']
     subset = idx[:,ECOLS.time] <= time
@@ -106,6 +111,7 @@ def get_sp_adj(edges,time,weighted,time_window):
 
     return {'idx': idx, 'vals': vals}
 
+# エッジのラベルを取得
 def get_edge_labels(edges,time):
     idx = edges['idx']
     subset = idx[:,ECOLS.time] == time
@@ -115,6 +121,7 @@ def get_edge_labels(edges,time):
     return {'idx': idx, 'vals': vals}
 
 
+# マスクするノードを取得
 def get_node_mask(cur_adj,num_nodes):
     mask = torch.zeros(num_nodes) - float("Inf")
     non_zero = cur_adj['idx'].unique()
@@ -123,6 +130,7 @@ def get_node_mask(cur_adj,num_nodes):
     
     return mask
 
+# 静的で疎な隣接行列を取得
 def get_static_sp_adj(edges,weighted):
     idx = edges['idx']
     #subset = idx[:,ECOLS.time] <= time
@@ -136,9 +144,12 @@ def get_static_sp_adj(edges,weighted):
 
     return {'idx': idx, 'vals': vals}
 
+# 新しい疎な隣接行列を取得
 def get_sp_adj_only_new(edges,time,weighted):
     return get_sp_adj(edges, time, weighted, time_window=1)
 
+
+# 隣接行列を正規化
 def normalize_adj(adj,num_nodes):
     '''
     takes an adj matrix as a dict with idx and vals and normalize it by: 
@@ -166,6 +177,7 @@ def normalize_adj(adj,num_nodes):
     
     return {'idx': idx.t(), 'vals': vals}
 
+# 謎
 def make_sparse_eye(size):
     eye_idx = torch.arange(size)
     eye_idx = torch.stack([eye_idx,eye_idx],dim=1).t()
@@ -173,6 +185,7 @@ def make_sparse_eye(size):
     eye = torch.sparse.FloatTensor(eye_idx,vals,torch.Size([size,size]))
     return eye
 
+# すべての存在しないエッジを取得
 def get_all_non_existing_edges(adj,tot_nodes):
     true_ids = adj['idx'].t().numpy()
     true_ids = get_edges_ids(true_ids,tot_nodes)
@@ -191,7 +204,7 @@ def get_all_non_existing_edges(adj,tot_nodes):
     vals = torch.zeros(edges.size(0), dtype = torch.long)
     return {'idx': edges, 'vals': vals}
 
-
+# 存在しないエッジを取得
 def get_non_existing_edges(adj,number, tot_nodes, smart_sampling, existing_nodes=None):
     # print('----------')
     t0 = time.time()
@@ -251,6 +264,7 @@ def get_non_existing_edges(adj,number, tot_nodes, smart_sampling, existing_nodes
     vals = torch.zeros(edges.size(0),dtype = torch.long)
     return {'idx': edges, 'vals': vals}
 
+# エッジのIDを取得
 def get_edges_ids(sp_idx, tot_nodes):
     # print(sp_idx)
     # print(tot_nodes)
