@@ -114,6 +114,7 @@ class Sp_GCN_GRU_A(Sp_GCN_LSTM_A):
 class Sp_GCN_LSTM_B(Sp_GCN):
     def __init__(self,args,activation):
         super().__init__(args,activation)
+        # データの形状などの入力形式を検証する文 assert if, notの時の出力
         assert args.num_layers == 2, 'GCN-LSTM and GCN-GRU requires 2 conv layers.'
         self.rnn_l1 = nn.LSTM(
                 input_size=args.layer_1_feats,
