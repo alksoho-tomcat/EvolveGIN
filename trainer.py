@@ -14,7 +14,7 @@ class Trainer():
 		self.splitter = splitter
 		# taskにより変化
 		self.tasker = splitter.tasker
-		# 不明 modelで定義?
+		# run_exp.pyで build_gcn(args, tasker)で定義
 		self.gcn = gcn
 		# run_exp.py build_classifierで定義
 		self.classifier = classifier

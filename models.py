@@ -6,24 +6,35 @@ from torch.nn import functional as F
 import torch.nn as nn
 import math
 
+# GCNクラス
 class Sp_GCN(torch.nn.Module):
+    # インスタンスを作成
     def __init__(self,args,activation):
         super().__init__()
+        # 活性化関数
         self.activation = activation
+        # レイヤー数
         self.num_layers = args.num_layers
-
+        # 重み
         self.w_list = nn.ParameterList()
+
+        # レイヤー数分パラメータをリストに追加
         for i in range(self.num_layers):
             if i==0:
+                # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
+                # exampleだとfeats_per_node = 100, layer_1_feats = 100
                 w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
                 u.reset_param(w_i)
             else:
+                # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
+                # exampleだとlayer_1_feats = 100, layer_2_feats = 100
                 w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
                 u.reset_param(w_i)
             self.w_list.append(w_i)
 
-
+    # 順伝播ステップ
     def forward(self,A_list, Nodes_list, nodes_mask_list):
+        
         node_feats = Nodes_list[-1]
         #A_list: T, each element sparse tensor
         #take only last adj matrix in time

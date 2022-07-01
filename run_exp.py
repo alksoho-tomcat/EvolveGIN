@@ -46,8 +46,12 @@ def random_param_value(param, param_min, param_max, type='int'):
 	else:
 		return param
 
-# モデルのハイパーパラメータを設定(モデルを決定する檀家にも含む) yamlで設定したもの?
+# モデルのハイパーパラメータを設定 yamlで設定したもの
+# argsはyamlをパーサーに掛けたもの
 def build_random_hyper_params(args):
+	# args.rankはif==__name__で定義 (MPI)に関係
+	# まとめて実験するようのモデル選択か?
+	# 無視
 	if args.model == 'all':
 		model_types = ['gcn', 'egcn_o', 'egcn_h', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
 		args.model=model_types[args.rank]
@@ -65,14 +69,18 @@ def build_random_hyper_params(args):
 		model_types = ['gcn', 'gcn', 'skipgcn', 'skipgcn']
 		args.model=model_types[args.rank]
 
+	# learning_rate, learnig_rate_min,_maxはyamlで定義
+	# learning_rateをlogスケールでランダムパラメータを代入
 	args.learning_rate =random_param_value(args.learning_rate, args.learning_rate_min, args.learning_rate_max, type='logscale')
 	# args.adj_mat_time_window = random_param_value(args.adj_mat_time_window, args.adj_mat_time_window_min, args.adj_mat_time_window_max, type='int')
 
+	# num_hist_stempsはyamlで定義
 	if args.model == 'gcn':
 		args.num_hist_steps = 0
 	else:
 		args.num_hist_steps = random_param_value(args.num_hist_steps, args.num_hist_steps_min, args.num_hist_steps_max, type='int')
-
+	
+	#  gcn_parametersはyaml内の gcn_parameters で定義
 	args.gcn_parameters['feats_per_node'] =random_param_value(args.gcn_parameters['feats_per_node'], args.gcn_parameters['feats_per_node_min'], args.gcn_parameters['feats_per_node_max'], type='int')
 	args.gcn_parameters['layer_1_feats'] =random_param_value(args.gcn_parameters['layer_1_feats'], args.gcn_parameters['layer_1_feats_min'], args.gcn_parameters['layer_1_feats_max'], type='int')
 	if args.gcn_parameters['layer_2_feats_same_as_l1'] or args.gcn_parameters['layer_2_feats_same_as_l1'].lower()=='true':
@@ -89,6 +97,7 @@ def build_random_hyper_params(args):
 
 
 # データセットを選択 yamlで選択
+# argsはyamlをパーサーに掛けたもの
 def build_dataset(args):
 	if args.data == 'bitcoinotc' or args.data == 'bitcoinalpha':
 		if args.data == 'bitcoinotc':
@@ -122,6 +131,7 @@ def build_dataset(args):
 		raise NotImplementedError('only arxiv has been implemented')
 
 # タスクを選択 yamlで選択
+# argsはyamlにパーサーを掛けたもの、datasetは上記の関数に掛けたもの
 def build_tasker(args,dataset):
 	if args.task == 'link_pred':
 		return lpt.Link_Pred_Tasker(args,dataset)
@@ -136,16 +146,21 @@ def build_tasker(args,dataset):
 		raise NotImplementedError('still need to implement the other tasks')
 
 # モデルを作成(定義はmodels.py egcn_h.py,egcn_o.py) yamlで選択
+# argsはyamlをパーサーに掛けたもの、taskerは上記の関数で設定したもの
 def build_gcn(args,tasker):
+	# gcn_argsはyaml内 gcn_parameters で設定したもの
 	gcn_args = u.Namespace(args.gcn_parameters)
+	# feats_per_nodeはyaml内 gcn_parameters で設定したもの
 	gcn_args.feats_per_node = tasker.feats_per_node
+	
+	# 静的なモデル
 	if args.model == 'gcn':
 		return mls.Sp_GCN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
 	elif args.model == 'skipgcn':
 		return mls.Sp_Skip_GCN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
 	elif args.model == 'skipfeatsgcn':
 		return mls.Sp_Skip_NodeFeats_GCN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
-	else:
+	else:	# 動的なモデル
 		assert args.num_hist_steps > 0, 'more than one step is necessary to train LSTM'
 		if args.model == 'lstmA':
 			return mls.Sp_GCN_LSTM_A(gcn_args,activation = torch.nn.RReLU()).to(args.device)
@@ -157,28 +172,32 @@ def build_gcn(args,tasker):
 			return mls.Sp_GCN_GRU_B(gcn_args,activation = torch.nn.RReLU()).to(args.device)
 		elif args.model == 'egcn':
 			return egcn.EGCN(gcn_args, activation = torch.nn.RReLU()).to(args.device)
-		elif args.model == 'egcn_h':
+		elif args.model == 'egcn_h':	# GRU deviceはegcn_h.pyでcpuを選択
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'skipfeatsegcn_h':
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device, skipfeats=True)
-		elif args.model == 'egcn_o':
+		elif args.model == 'egcn_o':	# LSTM deviceはegcn_i.pyでcpuを選択
 			return egcn_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		else:
 			raise NotImplementedError('need to finish modifying the models')
 
-# タスクの分析の詳細
+# classifier(models.py)の次元数決定
 def build_classifier(args,tasker):
+	# node_cls, static_node_clsの時
 	if 'node_cls' == args.task or 'static_node_cls' == args.task:
 		mult = 1
-	else:
+	else:	# それ以外の時
 		mult = 2
+	
+	# 動的なモデルの時
 	if 'gru' in args.model or 'lstm' in args.model:
 		in_feats = args.gcn_parameters['lstm_l2_feats'] * mult
-	elif args.model == 'skipfeatsgcn' or args.model == 'skipfeatsegcn_h':
+	elif args.model == 'skipfeatsgcn' or args.model == 'skipfeatsegcn_h':	# skipfeatsを使う時
 		in_feats = (args.gcn_parameters['layer_2_feats'] + args.gcn_parameters['feats_per_node']) * mult
 	else:
 		in_feats = args.gcn_parameters['layer_2_feats'] * mult
 
+	# Classifierはtorch.nn.moduleクラス
 	return mls.Classifier(args,in_features = in_feats, out_features = tasker.num_classes).to(args.device)
 
 
@@ -189,7 +208,7 @@ if __name__ == '__main__':
 	# yamlで設定した項目を取得
 	args = u.parse_args(parser)
 
-	# PyTorch上でできる分散アプリケーションのセットアップ
+	# PyTorch上でできる分散アプリケーション(MPI)のセットアップ
 	global rank, wsize, use_cuda
 	args.use_cuda = (torch.cuda.is_available() and args.use_cuda)
 	args.device='cpu'

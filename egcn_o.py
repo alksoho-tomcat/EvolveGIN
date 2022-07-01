@@ -5,6 +5,8 @@ import torch.nn as nn
 import math
 
 
+# LSTMタイプ
+
 class EGCN(torch.nn.Module):
     def __init__(self, args, activation, device='cpu', skipfeats=False):
         super().__init__()

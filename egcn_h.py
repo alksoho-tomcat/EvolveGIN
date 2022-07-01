@@ -4,6 +4,7 @@ from torch.nn.parameter import Parameter
 import torch.nn as nn
 import math
 
+# GRUバージョン
 
 class EGCN(torch.nn.Module):
     def __init__(self, args, activation, device='cpu', skipfeats=False):
@@ -41,7 +42,7 @@ class EGCN(torch.nn.Module):
             out = torch.cat((out,node_feats), dim=1)   # use node_feats.to_dense() if 2hot encoded input 
         return out
 
-
+# 
 class GRCU(torch.nn.Module):
     def __init__(self,args):
         super().__init__()
@@ -60,7 +61,8 @@ class GRCU(torch.nn.Module):
         #Initialize based on the number of columns
         stdv = 1. / math.sqrt(t.size(1))
         t.data.uniform_(-stdv,stdv)
-
+    
+    # GCNか? ほぼ確定
     def forward(self,A_list,node_embs_list,mask_list):
         GCN_weights = self.GCN_init_weights
         out_seq = []
@@ -68,12 +70,14 @@ class GRCU(torch.nn.Module):
             node_embs = node_embs_list[t]
             #first evolve the weights from the initial and use the new weights with the node_embs
             GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
+            # GCNの式のまま /sigma(Ahat, H, W)
             node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))
 
             out_seq.append(node_embs)
 
         return out_seq
 
+# GRUの定義
 class mat_GRU_cell(torch.nn.Module):
     def __init__(self,args):
         super().__init__()
@@ -92,7 +96,7 @@ class mat_GRU_cell(torch.nn.Module):
         
         self.choose_topk = TopK(feats = args.rows,
                                 k = args.cols)
-
+    # GRUの順伝播(式そのまま)
     def forward(self,prev_Q,prev_Z,mask):
         z_topk = self.choose_topk(prev_Z,mask)
 
