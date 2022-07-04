@@ -11,9 +11,9 @@ class EGCN(torch.nn.Module):
         super().__init__()
         GRCU_args = u.Namespace({})
 
-        feats = [args.feats_per_node,
-                 args.layer_1_feats,
-                 args.layer_2_feats]
+        feats = [args.feats_per_node,   # in yaml, 100 min: 50, max: 256
+                 args.layer_1_feats,    # in yaml, 100 min: 10, max: 200
+                 args.layer_2_feats]    # in yaml, 100
         self.device = device
         self.skipfeats = skipfeats
         self.GRCU_layers = []
@@ -24,7 +24,7 @@ class EGCN(torch.nn.Module):
                                      'activation': activation})
 
             grcu_i = GRCU(GRCU_args)
-            #print (i,'grcu_i', grcu_i)
+            print (i,'grcu_i', grcu_i)
             self.GRCU_layers.append(grcu_i.to(self.device))
             self._parameters.extend(list(self.GRCU_layers[-1].parameters()))
 

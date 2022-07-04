@@ -5,7 +5,7 @@ import torch.nn as nn
 import math
 
 
-# LSTMタイプ
+# LSTMバージョン
 
 class EGCN(torch.nn.Module):
     def __init__(self, args, activation, device='cpu', skipfeats=False):
