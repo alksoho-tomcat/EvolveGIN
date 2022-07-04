@@ -18,13 +18,31 @@ class EGCN(torch.nn.Module):
         self.skipfeats = skipfeats
         self.GRCU_layers = []
         self._parameters = nn.ParameterList()
-        for i in range(1,len(feats)):
+        for i in range(1,len(feats)):   # exampleだとi = 1, 2の2層
             GRCU_args = u.Namespace({'in_feats' : feats[i-1],
                                      'out_feats': feats[i],
                                      'activation': activation})
 
             grcu_i = GRCU(GRCU_args)
             print (i,'grcu_i', grcu_i)
+            # 出力例
+            # 1 grcu_i GRCU(
+            #   (evolve_weights): mat_GRU_cell(
+            #     (update): mat_GRU_gate(
+            #       (activation): Sigmoid()
+            #     )
+            #     (reset): mat_GRU_gate(
+            #       (activation): Sigmoid()
+            #     )
+            #     (htilda): mat_GRU_gate(
+            #       (activation): Tanh()
+            #     )
+            #     (choose_topk): TopK()
+            #   )
+            #   (activation): RReLU(lower=0.125, upper=0.3333333333333333)
+            # )
+            # 2 つづく
+
             self.GRCU_layers.append(grcu_i.to(self.device))
             self._parameters.extend(list(self.GRCU_layers[-1].parameters()))
 
@@ -67,6 +85,8 @@ class GRCU(torch.nn.Module):
         GCN_weights = self.GCN_init_weights
         out_seq = []
         for t,Ahat in enumerate(A_list):
+            print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
+            print('Ahat is ',Ahat)  # default index= tensor([[0-999][0-999]) size 1000*1000, value= tensor([0.0086ぐらい], nnz = non zero elements 10500 ぐらい)
             node_embs = node_embs_list[t]
             #first evolve the weights from the initial and use the new weights with the node_embs
             GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
