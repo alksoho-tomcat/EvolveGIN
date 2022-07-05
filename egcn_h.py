@@ -86,9 +86,12 @@ class GRCU(torch.nn.Module):
         out_seq = []
         for t,Ahat in enumerate(A_list):
             print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
+
+            # nodeの数はsbmでは1000個 
             print('Ahat is ',Ahat)  # default index= tensor([[0-999][0-999]) size 1000*1000, value= tensor([0.0086ぐらい], nnz = non zero elements 10500 ぐらい)
             node_embs = node_embs_list[t]
             #first evolve the weights from the initial and use the new weights with the node_embs
+            # mask_list[t]はtop_kで使うので考えなくてよし
             GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
             # GCNの式のまま /sigma(Ahat, H, W)
             node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))

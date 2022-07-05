@@ -123,10 +123,40 @@ def get_edge_labels(edges,time):
 
 # マスクするノードを取得
 def get_node_mask(cur_adj,num_nodes):
+    # maskはベクトル, ベクトルの要素は-inf
     mask = torch.zeros(num_nodes) - float("Inf")
     non_zero = cur_adj['idx'].unique()
 
+    
+    print('cur_adj[idx] is', cur_adj['idx'])
+    # 出力結果,辺のindex [sorce,target]
+    # tensor([[  0,   2],
+    #         [  0,   3],
+    #         [  0,   8],
+    #         ...,
+    #         [999, 970],
+    #         [999, 974],
+    #         [999, 991]])
+
+    print(cur_adj['idx'].size())
+    # 出力結果, 辺の総数
+    #     torch.Size([102482, 2]
+
+    print("\n")
+    print('non_zero is ', non_zero)
+    # 出力結果, non_zeroの値
+    # tensor([0, 1, ..., 998, 999])
+    print(non_zero.size())
+    # 出力結果, non_zeroの総数
+    # torch.Size([1000])
+
     mask[non_zero] = 0
+    print(mask)
+    # 出力結果, maskの値
+    # tensor([0., 0., ..., 0., 0.])
+    print(mask.size())
+    # 出力結果, マスクのサイズ
+    # torch.Size([1000])
     
     return mask
 
