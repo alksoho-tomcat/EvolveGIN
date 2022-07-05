@@ -181,6 +181,18 @@ class Trainer():
 
 		# 隣接行列を参照 indexと隣接行列を取り出す iがtimeの可能性あり? 
 		for i,adj in enumerate(sample.hist_adj_list):
+			print('adj in prepare_sample is ', adj)
+			# 結果 {'idx': tensor([[[  0,   0],
+			#          [  0,   2],
+			#          [  0,   3],
+			#          ...,
+			#          [999, 974],
+			#          [999, 991],
+			#          [999, 999]]]), 'vals': tensor([[0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]])}
+			print('adj[idx] size is', adj['idx'].size())
+			# 結果 adj[idx] size is torch.Size([1, 106358, 2])
+			print('adj[vals] size is', adj['vals'].size())
+			# 結果 adj[vals] size is torch.Size([1, 106358])
 			# 疎なテンソルを用意, 入力された隣接行列を疎なベクトル(tonsor型)に変換
 			adj = u.sparse_prepare_tensor(adj,torch_size = [self.num_nodes])
 			sample.hist_adj_list[i] = adj.to(self.args.device)

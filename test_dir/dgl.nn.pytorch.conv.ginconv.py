@@ -8,7 +8,6 @@ from ....utils import expand_as_pair
 
 
 
-[docs]
 class GINConv(nn.Module):
     r"""Graph Isomorphism Network layer from `How Powerful are Graph
     Neural Networks? <https://arxiv.org/pdf/1810.00826.pdf>`__
@@ -94,22 +93,29 @@ class GINConv(nn.Module):
                  learn_eps=False,
                  activation=None):
         super(GINConv, self).__init__()
+        # GINのf_theta(埋め込み更新の関数)
         self.apply_func = apply_func
+        # GINの埋め込み関数のアグリゲーション関数
         self._aggregator_type = aggregator_type
+        # 活性化関数
         self.activation = activation
+
+        # アグリゲーション関数の選択
         if aggregator_type not in ('sum', 'max', 'mean'):
             raise KeyError(
                 'Aggregator type {} not recognized.'.format(aggregator_type))
+        
         # to specify whether eps is trainable or not.
+        # (1+eps)hのところのepsを学習するかどうか
         if learn_eps:
             self.eps = th.nn.Parameter(th.FloatTensor([init_eps]))
         else:
             self.register_buffer('eps', th.FloatTensor([init_eps]))
 
 
-[docs]
+
     def forward(self, graph, feat, edge_weight=None):
-        r"""
+        """
 
         Description
         -----------
@@ -138,6 +144,7 @@ class GINConv(nn.Module):
             If ``apply_func`` is None, :math:`D_{out}` should be the same
             as input dimensionality.
         """
+
         _reducer = getattr(fn, self._aggregator_type)
         with graph.local_scope():
             aggregate_fn = fn.copy_src('h', 'm')
@@ -149,6 +156,7 @@ class GINConv(nn.Module):
             feat_src, feat_dst = expand_as_pair(feat, graph)
             graph.srcdata['h'] = feat_src
             graph.update_all(aggregate_fn, _reducer('m', 'neigh'))
+            
             rst = (1 + self.eps) * feat_dst + graph.dstdata['neigh']
             if self.apply_func is not None:
                 rst = self.apply_func(rst)
