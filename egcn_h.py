@@ -116,9 +116,33 @@ class GRCU_GIN(torch.nn.Module):
             # # node_embs[indices] size is torch.Size([2, 1000])
             # print('node_embs[values] size is', node_embs._values().size())
             # # node_embs[values] size is torch.Size([1000])
-            u, v = Ahat._indices()[0],Ahat.indices()[1]
+            
+            # グラフのノードリストをAhatから作成
+            graph_node_list = Ahat._indices()
 
+            # print(graph_node_list[0])
+            u, v = graph_node_list[0], graph_node_list[1]
+            print(u)
+            print(v)
+            # dgl.graphでグラフ作成
             g = dgl.graph((u,v))
+            print('graph ok')
+            
+            # feat
+            feat = node_embs
+            print('feat ok')
+
+            lin = (100,100)
+            print('lin ok')
+            # ここまでok
+
+            conv = GINConv(lin, 'max')
+            print('conv ok')
+            
+            node_embs = conv(g, feat) 
+            # ここでだめになる
+            print('node_embs ok')
+
 
 
             #first evolve the weights from the initial and use the new weights with the node_embs

@@ -108,6 +108,8 @@ class Trainer():
 		torch.set_grad_enabled(grad)
 
 		# データセットからサンプリング
+		# データセットはtasker(link_pred_tasker.pyなど)でデータ整形される
+		# 整形後はspliter.pyでtrain,dev,testに分割される
 		for s in split:
 			if self.tasker.is_static:
 				s = self.prepare_static_sample(s)
@@ -193,7 +195,7 @@ class Trainer():
 			# # 結果 adj[idx] size is torch.Size([1, 106358, 2])
 			# print('adj[vals] size is', adj['vals'].size())
 			# # 結果 adj[vals] size is torch.Size([1, 106358])
-			
+
 			# 疎なテンソルを用意, 入力された隣接行列を疎なベクトル(tonsor型)に変換
 			adj = u.sparse_prepare_tensor(adj,torch_size = [self.num_nodes])
 			sample.hist_adj_list[i] = adj.to(self.args.device)
