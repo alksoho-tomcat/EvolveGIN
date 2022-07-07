@@ -24,24 +24,24 @@ class EGCN(torch.nn.Module):
                                      'activation': activation})
 
             grcu_i = GRCU(GRCU_args)
-            print (i,'grcu_i', grcu_i)
-            # 出力例
-            # 1 grcu_i GRCU(
-            #   (evolve_weights): mat_GRU_cell(
-            #     (update): mat_GRU_gate(
-            #       (activation): Sigmoid()
-            #     )
-            #     (reset): mat_GRU_gate(
-            #       (activation): Sigmoid()
-            #     )
-            #     (htilda): mat_GRU_gate(
-            #       (activation): Tanh()
-            #     )
-            #     (choose_topk): TopK()
-            #   )
-            #   (activation): RReLU(lower=0.125, upper=0.3333333333333333)
-            # )
-            # 2 つづく
+            # print (i,'grcu_i', grcu_i)
+            # # 出力例
+            # # 1 grcu_i GRCU(
+            # #   (evolve_weights): mat_GRU_cell(
+            # #     (update): mat_GRU_gate(
+            # #       (activation): Sigmoid()
+            # #     )
+            # #     (reset): mat_GRU_gate(
+            # #       (activation): Sigmoid()
+            # #     )
+            # #     (htilda): mat_GRU_gate(
+            # #       (activation): Tanh()
+            # #     )
+            # #     (choose_topk): TopK()
+            # #   )
+            # #   (activation): RReLU(lower=0.125, upper=0.3333333333333333)
+            # # )
+            # # 2 つづく
 
             self.GRCU_layers.append(grcu_i.to(self.device))
             self._parameters.extend(list(self.GRCU_layers[-1].parameters()))
@@ -85,35 +85,35 @@ class GRCU(torch.nn.Module):
         GCN_weights = self.GCN_init_weights
         out_seq = []
         for t,Ahat in enumerate(A_list):
-            print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
+            # print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
 
-            # nodeの数はsbmでは1000個 
-            print('Ahat is ',Ahat)  
-            # tensor(indices=tensor([[  0,   0,   0,  ..., 999, 999, 999],
-            #                        [  0,   2,   3,  ..., 974, 991, 999]]),
-            #        values=tensor([0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]),
-            #        device='cuda:0', size=(1000, 1000), nnz=106358, layout=torch.sparse_coo)
+            # # nodeの数はsbmでは1000個 
+            # print('Ahat is ',Ahat)  
+            # # tensor(indices=tensor([[  0,   0,   0,  ..., 999, 999, 999],
+            # #                        [  0,   2,   3,  ..., 974, 991, 999]]),
+            # #        values=tensor([0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]),
+            # #        device='cuda:0', size=(1000, 1000), nnz=106358, layout=torch.sparse_coo)
             
-            print('Ahat[idices] size is', Ahat._indices().size())
-            # Ahat[idices] size is torch.Size([2, 99622])
-            print('Ahat[values] size is', Ahat._values().size())
-            # Ahat[values] size is torch.Size([99622])
+            # print('Ahat[idices] size is', Ahat._indices().size())
+            # # Ahat[idices] size is torch.Size([2, 99622])
+            # print('Ahat[values] size is', Ahat._values().size())
+            # # Ahat[values] size is torch.Size([99622])
 
             node_embs = node_embs_list[t]
 
             
-            print('node_embs is',node_embs)
-            # tensor(indices=tensor([[  0,   1,   2,  ..., 997, 998, 999],
-            #                        [113, 104, 118,  ..., 109, 126, 107]]),
-            #        values=tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-            #                      ...                      1., 1., 1., 1., 1., 1.]),
-            # device='cuda:0', size=(1000, 162), nnz=1000, layout=torch.sparse_coo)
-            print('node_embs size is ',node_embs.size())
-            # node_embs size is  torch.Size([1000, 162])            
-            print('node_embs[indices] size is', node_embs._indices().size())
-            # node_embs[indices] size is torch.Size([2, 1000])
-            print('node_embs[values] size is', node_embs._values().size())
-            # node_embs[values] size is torch.Size([1000])
+            # print('node_embs is',node_embs)
+            # # tensor(indices=tensor([[  0,   1,   2,  ..., 997, 998, 999],
+            # #                        [113, 104, 118,  ..., 109, 126, 107]]),
+            # #        values=tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+            # #                      ...                      1., 1., 1., 1., 1., 1.]),
+            # # device='cuda:0', size=(1000, 162), nnz=1000, layout=torch.sparse_coo)
+            # print('node_embs size is ',node_embs.size())
+            # # node_embs size is  torch.Size([1000, 162])            
+            # print('node_embs[indices] size is', node_embs._indices().size())
+            # # node_embs[indices] size is torch.Size([2, 1000])
+            # print('node_embs[values] size is', node_embs._values().size())
+            # # node_embs[values] size is torch.Size([1000])
 
 
             #first evolve the weights from the initial and use the new weights with the node_embs
@@ -122,23 +122,23 @@ class GRCU(torch.nn.Module):
             # GCNの式のまま /sigma(Ahat, H, W)
             node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))
 
-            print('node_embs is',node_embs)
-            # tensor([[ 2.3553e-03,  4.7566e-03,  3.8439e-03,  ...,  2.7891e-03,
-            #          -7.1719e-04, -4.6245e-05],
-            #         [ 1.3924e-03,  4.9633e-03,  3.9742e-03,  ...,  2.9675e-03,
-            #          -4.8462e-04, -1.7144e-05],
-            #         [ 2.7072e-03,  5.9885e-03,  4.6321e-03,  ...,  2.5399e-03,
-            #          -5.2102e-04, -1.3480e-05],
-            #         ...,
-            #         [ 2.1789e-03,  4.4128e-03,  4.0893e-03,  ...,  2.9770e-03,
-            #          -5.8977e-04,  1.7529e-03],
-            #         [ 2.9603e-03,  5.6537e-03,  5.3050e-03,  ...,  2.7975e-03,
-            #          -6.1702e-04, -2.4860e-04],
-            #         [ 2.1423e-03,  4.9230e-03,  5.4246e-03,  ...,  2.7250e-03,
-            #          -3.6473e-04, -6.3530e-05]], device='cuda:0',
-            #        grad_fn=<RreluWithNoiseBackward0>)
-            print('node_embs size is ',node_embs.size())
-            # torch.Size([1000, 100])
+            # print('node_embs is',node_embs)
+            # # tensor([[ 2.3553e-03,  4.7566e-03,  3.8439e-03,  ...,  2.7891e-03,
+            # #          -7.1719e-04, -4.6245e-05],
+            # #         [ 1.3924e-03,  4.9633e-03,  3.9742e-03,  ...,  2.9675e-03,
+            # #          -4.8462e-04, -1.7144e-05],
+            # #         [ 2.7072e-03,  5.9885e-03,  4.6321e-03,  ...,  2.5399e-03,
+            # #          -5.2102e-04, -1.3480e-05],
+            # #         ...,
+            # #         [ 2.1789e-03,  4.4128e-03,  4.0893e-03,  ...,  2.9770e-03,
+            # #          -5.8977e-04,  1.7529e-03],
+            # #         [ 2.9603e-03,  5.6537e-03,  5.3050e-03,  ...,  2.7975e-03,
+            # #          -6.1702e-04, -2.4860e-04],
+            # #         [ 2.1423e-03,  4.9230e-03,  5.4246e-03,  ...,  2.7250e-03,
+            # #          -3.6473e-04, -6.3530e-05]], device='cuda:0',
+            # #        grad_fn=<RreluWithNoiseBackward0>)
+            # print('node_embs size is ',node_embs.size())
+            # # torch.Size([1000, 100])
 
             out_seq.append(node_embs)
 
