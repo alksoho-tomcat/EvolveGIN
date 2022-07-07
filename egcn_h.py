@@ -4,8 +4,9 @@ from torch.nn.parameter import Parameter
 import torch.nn as nn
 import math
 
-import
-
+import dgl
+from dgl.nn import GINConv
+from torch.nn.functional import relu
 # GRUバージョン
 
 class EGCN(torch.nn.Module):
