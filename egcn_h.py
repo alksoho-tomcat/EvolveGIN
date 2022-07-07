@@ -88,11 +88,11 @@ class GRCU(torch.nn.Module):
             # print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
 
             # # nodeの数はsbmでは1000個 
-            # print('Ahat is ',Ahat)  
-            # # tensor(indices=tensor([[  0,   0,   0,  ..., 999, 999, 999],
-            # #                        [  0,   2,   3,  ..., 974, 991, 999]]),
-            # #        values=tensor([0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]),
-            # #        device='cuda:0', size=(1000, 1000), nnz=106358, layout=torch.sparse_coo)
+            print('Ahat is ',Ahat)  
+            # tensor(indices=tensor([[  0,   0,   0,  ..., 999, 999, 999],
+            #                        [  0,   2,   3,  ..., 974, 991, 999]]),
+            #        values=tensor([0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]),
+            #        device='cuda:0', size=(1000, 1000), nnz=106358, layout=torch.sparse_coo)
             
             # print('Ahat[idices] size is', Ahat._indices().size())
             # # Ahat[idices] size is torch.Size([2, 99622])

@@ -193,6 +193,7 @@ class Trainer():
 			# # 結果 adj[idx] size is torch.Size([1, 106358, 2])
 			# print('adj[vals] size is', adj['vals'].size())
 			# # 結果 adj[vals] size is torch.Size([1, 106358])
+			
 			# 疎なテンソルを用意, 入力された隣接行列を疎なベクトル(tonsor型)に変換
 			adj = u.sparse_prepare_tensor(adj,torch_size = [self.num_nodes])
 			sample.hist_adj_list[i] = adj.to(self.args.device)

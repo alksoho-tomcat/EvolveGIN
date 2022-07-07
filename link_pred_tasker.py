@@ -128,7 +128,14 @@ class Link_Pred_Tasker():
 
 			node_feats = self.get_node_feats(cur_adj)
 
-			cur_adj = tu.normalize_adj(adj = cur_adj, num_nodes = self.data.num_nodes)
+			# この時点でのcur_adjはただの隣接行列
+			# print('cur_adj in tasker',cur_adj)
+
+			# GINのときはこれをコメントアウトする
+			# cur_adj = tu.normalize_adj(adj = cur_adj, num_nodes = self.data.num_nodes)
+			
+			# # これ以降はrenormalized_adjになる
+			# print('normalized_curl_adj in tasker ', cur_adj)
 
 			hist_adj_list.append(cur_adj)
 			hist_ndFeats_list.append(node_feats)
