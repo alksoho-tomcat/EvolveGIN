@@ -127,20 +127,26 @@ class GRCU_GIN(torch.nn.Module):
             print(v)
             # dgl.graphでグラフ作成
             g = dgl.graph((u,v))
+            g1 = g.to('cuda:0')
             print('graph ok')
             
             # feat
-            feat = node_embs
+            # sparse_cooからtensorへ
+            feat = node_embs.to_dense()
+            print(feat)
+            # feat.to('cpu')
             print('feat ok')
 
             lin = (100,100)
+            # lin.to('cpu')
             print('lin ok')
             # ここまでok
 
             conv = GINConv(lin, 'max')
+            # conv.to('cpu')
             print('conv ok')
             
-            node_embs = conv(g, feat) 
+            node_embs = conv(g1, feat) 
             # ここでだめになる
             print('node_embs ok')
 
@@ -148,9 +154,9 @@ class GRCU_GIN(torch.nn.Module):
 
             #first evolve the weights from the initial and use the new weights with the node_embs
             # mask_list[t]はtop_kで使うので考えなくてよし
-            GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
+            # GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
             # GCNの式のまま /sigma(Ahat, H, W)
-            node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))
+            # node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))
 
             # print('node_embs is',node_embs)
             # # tensor([[ 2.3553e-03,  4.7566e-03,  3.8439e-03,  ...,  2.7891e-03,

@@ -110,6 +110,7 @@ class Trainer():
 		# データセットからサンプリング
 		# データセットはtasker(link_pred_tasker.pyなど)でデータ整形される
 		# 整形後はspliter.pyでtrain,dev,testに分割される
+
 		for s in split:
 			if self.tasker.is_static:
 				s = self.prepare_static_sample(s)
@@ -201,6 +202,7 @@ class Trainer():
 			sample.hist_adj_list[i] = adj.to(self.args.device)
 
 			# indexから特徴量行列を抽出
+			# taskerで特徴量行列作成
 			nodes = self.tasker.prepare_node_feats(sample.hist_ndFeats_list[i])
 			sample.hist_ndFeats_list[i] = nodes.to(self.args.device)
 
