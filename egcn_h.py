@@ -88,10 +88,10 @@ class GRCU_GIN(torch.nn.Module):
         GCN_weights = self.GCN_init_weights
         out_seq = []
         for t,Ahat in enumerate(A_list):
-            # print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
+            print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
 
             # # nodeの数はsbmでは1000個 
-            print('Ahat is ',Ahat)  
+            # print('Ahat is ',Ahat)  
             # tensor(indices=tensor([[  0,   0,   0,  ..., 999, 999, 999],
             #                        [  0,   2,   3,  ..., 974, 991, 999]]),
             #        values=tensor([0.0088, 0.0086, 0.0086,  ..., 0.0087, 0.0092, 0.0093]),
@@ -123,32 +123,52 @@ class GRCU_GIN(torch.nn.Module):
 
             # print(graph_node_list[0])
             u, v = graph_node_list[0], graph_node_list[1]
-            print(u)
-            print(v)
+            u = u.to('cpu')
+            v = v.to('cpu')
+            # print(u.device)
+            # print(v.device)
             # dgl.graphでグラフ作成
             g = dgl.graph((u,v))
-            g1 = g.to('cuda:0')
-            print('graph ok')
+            # g1 = g.to('cuda:0')
+            g = g.to('cpu')
+            # print(g.device)
+            print(' graph ok')
             
             # feat
             # sparse_cooからtensorへ
-            feat = node_embs.to_dense()
-            print(feat)
-            # feat.to('cpu')
-            print('feat ok')
+            # print(feat.device)
+            print(' node_embs size is')
+            print(node_embs.size())
+            print(node_embs.layout)
+            is_sparse_coo = str(node_embs.layout)
 
-            lin = (100,100)
+            if is_sparse_coo == 'torch_sparse_coo':
+                print(' coo')
+                feat = node_embs.to_dense()
+            else:
+                print(' not coo')
+                feat = node_embs
+            print(' dense ok')
+            
+            # feat.size() is torch.Size([1000,162])
+            # print(feat)
+            feat = feat.to('cpu')
+            print(' feat ok')
+
+            # if feat.size()
+            lin = nn.Linear(feat.size()[1],100)
             # lin.to('cpu')
-            print('lin ok')
+            print(' lin ok')
             # ここまでok
 
             conv = GINConv(lin, 'max')
             # conv.to('cpu')
-            print('conv ok')
+            print(' conv ok')
             
-            node_embs = conv(g1, feat) 
+
+            node_embs = conv(g, feat) 
             # ここでだめになる
-            print('node_embs ok')
+            print(' node_embs ok')
 
 
 
@@ -175,6 +195,7 @@ class GRCU_GIN(torch.nn.Module):
             # #        grad_fn=<RreluWithNoiseBackward0>)
             # print('node_embs size is ',node_embs.size())
             # # torch.Size([1000, 100])
+            node_embs = node_embs.to('cuda:0')
 
             out_seq.append(node_embs)
 
