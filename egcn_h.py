@@ -142,7 +142,7 @@ class GRCU_GIN(torch.nn.Module):
             print(node_embs.layout)
             is_sparse_coo = str(node_embs.layout)
 
-            if is_sparse_coo == 'torch_sparse_coo':
+            if is_sparse_coo == 'torch.sparse_coo':
                 print(' coo')
                 feat = node_embs.to_dense()
             else:
