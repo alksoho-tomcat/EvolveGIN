@@ -6,6 +6,11 @@ from torch.nn import functional as F
 import torch.nn as nn
 import math
 
+# dgl
+import dgl
+from dgl.nn import GINConv
+from torch.nn.functional import relu
+
 # GCNクラス
 class Sp_GCN(torch.nn.Module):
     # インスタンスを作成
@@ -15,41 +20,112 @@ class Sp_GCN(torch.nn.Module):
         self.activation = activation
         # レイヤー数
         self.num_layers = args.num_layers
-        # 重み
-        self.w_list = nn.ParameterList()
 
-        # レイヤー数分パラメータをリストに追加
-        for i in range(self.num_layers):
-            if i==0:
-                # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
-                # exampleだとfeats_per_node = 100, layer_1_feats = 100
-                w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
-                u.reset_param(w_i)
-            else:
-                # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
-                # exampleだとlayer_1_feats = 100, layer_2_feats = 100
-                w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
-                u.reset_param(w_i)
-            self.w_list.append(w_i)
+        # レイヤー
+        self.lin1 = nn.Linear(162, args.layer_1_feats)
+        self.conv1 = GINConv(self.lin1,'sum')
 
-    # 順伝播ステップ
+        self.lin2 = nn.Linear(args.layer_1_feats, args.layer_2_feats) 
+        self.conv2 = GINConv(self.lin2, 'sum') 
+
+
+        # # 重み
+        # self.w_list = nn.ParameterList()
+
+        # # レイヤー数分パラメータをリストに追加
+        # for i in range(self.num_layers):
+        #     if i==0:
+        #         # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
+        #         # exampleだとfeats_per_node = 100, layer_1_feats = 100
+        #         w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
+        #         u.reset_param(w_i)
+        #     else:
+        #         # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
+        #         # exampleだとlayer_1_feats = 100, layer_2_feats = 100
+        #         w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
+        #         u.reset_param(w_i)
+        #     self.w_list.append(w_i)
+
+    # 順伝播ステップ GIN
     def forward(self,A_list, Nodes_list, nodes_mask_list):
         
         node_feats = Nodes_list[-1]
-        #A_list: T, each element sparse tensor
-        #take only last adj matrix in time
-        Ahat = A_list[-1]
-        #Ahat: NxN ~ 30k
-        #sparse multiplication
+        # print('node_feats is',node_feats)
+        graph_node_list = A_list[-1]._indices()
+        # print('graph_node_list is',graph_node_list)
 
-        # Ahat NxN
-        # self.node_embs = Nxk
-        #
-        # note(bwheatman, tfk): change order of matrix multiply
-        last_l = self.activation(Ahat.matmul(node_feats.matmul(self.w_list[0])))
-        for i in range(1, self.num_layers):
-            last_l = self.activation(Ahat.matmul(last_l.matmul(self.w_list[i])))
+        u, v = graph_node_list[0], graph_node_list[1]
+        u = u.to('cpu')
+        v = v.to('cpu')
+
+        # dgl.graphでグラフ作成
+        g = dgl.graph((u,v))
+        g = g.to('cpu')
+        # print(g.device)
+        # print(' graph ok')
+
+        is_sparse_coo = str(node_feats.layout)
+
+        if is_sparse_coo == 'torch.sparse_coo':
+            # print(' coo')
+            feat = node_feats.to_dense()
+        else:
+            # print(' not coo')
+            feat = node_feats
+        # print(' dense ok')
+        
+        feat = feat.to('cpu')
+        # print(' feat ok')
+        
+
+        last_l = self.conv1(g,feat).to('cpu')
+        last_l = self.conv2(g,last_l).to('cpu')
+        
         return last_l
+    
+    ## 元バージョン
+    # class Sp_GCN(torch.nn.Module):
+    # # インスタンスを作成
+    # def __init__(self,args,activation):
+    #     super().__init__()
+    #     # 活性化関数
+    #     self.activation = activation
+    #     # レイヤー数
+    #     self.num_layers = args.num_layers
+    #     # 重み
+    #     self.w_list = nn.ParameterList()
+
+    #     # レイヤー数分パラメータをリストに追加
+    #     for i in range(self.num_layers):
+    #         if i==0:
+    #             # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
+    #             # exampleだとfeats_per_node = 100, layer_1_feats = 100
+    #             w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
+    #             u.reset_param(w_i)
+    #         else:
+    #             # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
+    #             # exampleだとlayer_1_feats = 100, layer_2_feats = 100
+    #             w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
+    #             u.reset_param(w_i)
+    #         self.w_list.append(w_i)
+    ## 順伝播ステップ
+    # def forward(self,A_list, Nodes_list, nodes_mask_list):
+        
+    #     node_feats = Nodes_list[-1]
+    #     #A_list: T, each element sparse tensor
+    #     #take only last adj matrix in time
+    #     Ahat = A_list[-1]
+    #     #Ahat: NxN ~ 30k
+    #     #sparse multiplication
+
+    #     # Ahat NxN
+    #     # self.node_embs = Nxk
+    #     #
+    #     # note(bwheatman, tfk): change order of matrix multiply
+    #     last_l = self.activation(Ahat.matmul(node_feats.matmul(self.w_list[0])))
+    #     for i in range(1, self.num_layers):
+    #         last_l = self.activation(Ahat.matmul(last_l.matmul(self.w_list[i])))
+    #     return last_l
 
 
 class Sp_Skip_GCN(Sp_GCN):

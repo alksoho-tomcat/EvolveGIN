@@ -88,7 +88,7 @@ class GRCU_GIN(torch.nn.Module):
         GCN_weights = self.GCN_init_weights
         out_seq = []
         for t,Ahat in enumerate(A_list):
-            print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
+            # print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
 
             # # nodeの数はsbmでは1000個 
             # print('Ahat is ',Ahat)  
@@ -161,7 +161,7 @@ class GRCU_GIN(torch.nn.Module):
             print(' lin ok')
             # ここまでok
 
-            conv = GINConv(lin, 'max')
+            conv = GINConv(lin, 'sum')
             # conv.to('cpu')
             print(' conv ok')
             
