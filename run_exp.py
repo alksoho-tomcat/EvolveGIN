@@ -218,8 +218,8 @@ if __name__ == '__main__':
 	args.use_cuda = (torch.cuda.is_available() and args.use_cuda)
 	args.device='cpu'
     # static modelを動かすときになぜかcpu,gpu使っているのでとりあえず切った
-	# if args.use_cuda:
-	# 	args.device='cuda'
+	if args.use_cuda:
+		args.device='cuda'
 	print ("use CUDA:", args.use_cuda, "- device:", args.device)
 	try:
 		dist.init_process_group(backend='mpi') #, world_size=4
