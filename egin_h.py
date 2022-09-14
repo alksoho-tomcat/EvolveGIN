@@ -118,7 +118,7 @@ class GRCU_GIN(torch.nn.Module):
             u = u.to('cpu')
             v = v.to('cpu')
             # dgl.graphでグラフ作成
-            g = dgl.graph((u,v))
+            g = dgl.graph((u,v),num_nodes=Ahat.size())
             # g1 = g.to('cuda:0')
             g = g.to('cpu')
 
