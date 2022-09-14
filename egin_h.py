@@ -107,7 +107,7 @@ class GRCU_GIN(torch.nn.Module):
         out_seq = []
         hidden_seq = []
         for t,Ahat in enumerate(A_list):
-            print('t is ',t)
+            # print('t is ',t)
             # print('hidden_state size is',hidden_state.size())
             node_embs = node_embs_list[t]
        
@@ -137,10 +137,10 @@ class GRCU_GIN(torch.nn.Module):
             # print(' feat ok')
 
 
-            lin = nn.Linear(feat.size()[1],100)
+            # lin = nn.Linear(feat.size()[1],100)
 
             
-            conv = GINConv(lin, 'sum') # learn_eps = True)
+            conv = GINConv('sum') # learn_eps = True)
 
             
 
@@ -149,19 +149,20 @@ class GRCU_GIN(torch.nn.Module):
             
 
             node_embs = conv(g, feat)
+            node_embs = node_embs.to('cuda')
 
-            node_embs = self.activation(F.linear(node_embs,GIN_W1.t()))
-            print('  fist_node_embs size is',node_embs.size())
-            GIN_W2 = self.evolve_weight2(GIN_W2,node_embs,mask_list[t])
+            new_node_embs = self.activation(F.linear(node_embs,GIN_W1.t()))
+            # print('  fist_node_embs size is',node_embs.size())
+            GIN_W2 = self.evolve_weight2(GIN_W2,new_node_embs,mask_list[t])
             # print('GIN_W2 size is',GIN_W2.size())
-            last_node_embs = self.activation(F.linear(node_embs,GIN_W2.t()))
-            print('  last_node_embs size is',last_node_embs.size())
+            last_node_embs = self.activation(F.linear(new_node_embs,GIN_W2.t()))
+            # print('  last_node_embs size is',last_node_embs.size())
 
   
 
 
             out_seq.append(last_node_embs)
-
+    
         return out_seq
 
 
