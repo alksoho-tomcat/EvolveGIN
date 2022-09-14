@@ -5,7 +5,7 @@ import os
 
 filename = sys.argv[-1]
 # filename = './log/log_sbm50_link_pred_egcn_h_20220911183855_r0.log'
-file_log = filename.split('/')[1][0:-4]
+file_log = filename.split('/')[-1][0:-4]
 new_dir_path = './log/img_'+file_log
 
 try:
