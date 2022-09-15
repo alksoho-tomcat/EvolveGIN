@@ -115,12 +115,13 @@ class GRCU_GIN(torch.nn.Module):
             graph_node_list = Ahat._indices()
 
             u, v = graph_node_list[0], graph_node_list[1]
-            u = u.to('cpu')
-            v = v.to('cpu')
+            # # dglをcpuで動かす
+            # u = u.to('cpu')
+            # v = v.to('cpu')
             # dgl.graphでグラフ作成
             g = dgl.graph((u,v),num_nodes=Ahat.size(0))
             # g1 = g.to('cuda:0')
-            g = g.to('cpu')
+            # g = g.to('cpu')
 
             
             is_sparse_coo = str(node_embs.layout)
@@ -132,15 +133,15 @@ class GRCU_GIN(torch.nn.Module):
                 # print(' not coo')
                 feat = node_embs
             # print(' dense ok')
-            
-            feat = feat.to('cpu')
+            # # dglをcpuで動かす
+            # feat = feat.to('cpu')
             # print(' feat ok')
 
 
             # lin = nn.Linear(feat.size()[1],100)
 
             
-            conv = GINConv('sum') # learn_eps = True)
+            conv = GINConv('sum').to('cuda') # learn_eps = True)
 
             
 
@@ -149,7 +150,7 @@ class GRCU_GIN(torch.nn.Module):
             
 
             node_embs = conv(g, feat)
-            node_embs = node_embs.to('cuda')
+            # node_embs = node_embs.to('cuda')
 
             new_node_embs = self.activation(F.linear(node_embs,GIN_W1.t()))
             # print('  fist_node_embs size is',node_embs.size())
