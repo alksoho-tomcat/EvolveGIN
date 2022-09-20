@@ -91,18 +91,28 @@ class GRCU_GIN(torch.nn.Module):
         # これを外すとoptimizer got an empty parameter listのエラーが出る 
         self.GIN_init_W1 = Parameter(torch.Tensor(self.args.in_feats,self.args.out_feats))
         self.GIN_init_W2 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        self.W1_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        self.W2_init_bias = Parameter(torch.Tensor(self.args.out_feats))
         self.reset_param(self.GIN_init_W1)
         self.reset_param(self.GIN_init_W2)
+        self.reset_bias(self.W1_init_bias)
+        self.reset_bias(self.W2_init_bias)
 
     def reset_param(self,t):
         #Initialize based on the number of columns
         stdv = 1. / math.sqrt(t.size(1))
         t.data.uniform_(-stdv,stdv)
     
+    def reset_bias(self,t):
+        stdv = 1. / math.sqrt(t.size(0))
+        t.data.uniform_(-stdv,stdv)
+    
     # GIN
     def forward(self,A_list,node_embs_list,mask_list):
         GIN_W1 = self.GIN_init_W1
         GIN_W2 = self.GIN_init_W2
+        W1_bias = self.W1_init_bias
+        W2_bias = self.W2_init_bias
         # print(mask_list)
         out_seq = []
         hidden_seq = []
@@ -152,11 +162,11 @@ class GRCU_GIN(torch.nn.Module):
             node_embs = conv(g, feat)
             # node_embs = node_embs.to('cuda')
 
-            new_node_embs = self.activation(F.linear(node_embs,GIN_W1.t()))
+            new_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))
             # print('  fist_node_embs size is',node_embs.size())
             GIN_W2 = self.evolve_weight2(GIN_W2,new_node_embs,mask_list[t])
             # print('GIN_W2 size is',GIN_W2.size())
-            last_node_embs = self.activation(F.linear(new_node_embs,GIN_W2.t()))
+            last_node_embs = self.activation(F.linear(new_node_embs,GIN_W2.t(),W2_bias))
             # print('  last_node_embs size is',last_node_embs.size())
 
   
