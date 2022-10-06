@@ -139,15 +139,18 @@ class GRCU(torch.nn.Module):
             # 1層目
             GIN_W1 = self.evolve_weight1(GIN_W1)# ,node_embs,mask_list[t])            
             first_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))           
+            # first_node_embs = self.activation(node_embs.matmul(GIN_W1)) # + W1_bias
 
             # 2層目
-            GIN_W2 = self.evolve_weight2(GIN_W2)# ,first_node_embs,mask_list[t])     
-            second_node_embs = self.activation(F.linear(first_node_embs,GIN_W2.t(),W2_bias))
+            GIN_W2 = self.evolve_weight2(GIN_W2)# ,first_node_embs,mask_list[t])
+            second_node_embs = self.activation(F.linear(node_embs,GIN_W2.t(),W2_bias))
+            # second_node_embs = self.activation(node_embs.matmul(GIN_W2)) # + W2_bias
             
 
             # 3層目
-            GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])     
-            last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))
+            GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])
+            last_node_embs = self.activation(F.linear(node_embs,GIN_W3.t(),W3_bias))     
+            # last_node_embs = self.activation(node_embs.matmul(GIN_W3)) # + W3_bias
 
 
             out_seq.append(last_node_embs)
