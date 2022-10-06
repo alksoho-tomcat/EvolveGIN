@@ -189,7 +189,50 @@ class mat_GRU_cell(torch.nn.Module):
 
         return new_Q
 
-        
+
+class GINConv(torch.nn.Module):
+    def __init__(self,
+                 apply_func=None,
+                 aggregator_type='sum',
+                 init_eps=0,
+                 learn_eps=False,
+                 activation=None):
+        super(GINConv, self).__init__()
+        self.apply_func = apply_func
+        self._aggregator_type = aggregator_type
+        self.activation = activation
+        if aggregator_type not in ('sum', 'max', 'mean'):
+            raise KeyError(
+                'Aggregator type {} not recognized.'.format(aggregator_type))
+        # to specify whether eps is trainable or not.
+        if learn_eps:
+            self.eps = torch.nn.Parameter(torch.FloatTensor([init_eps]))
+        else:
+            self.register_buffer('eps', torch.FloatTensor([init_eps]))
+
+    def forward(self, graph, feat, edge_weight=None):
+        _reducer = getattr(fn, self._aggregator_type)
+        with graph.local_scope():
+            aggregate_fn = fn.copy_src('h', 'm')
+            if edge_weight is not None:
+                assert edge_weight.shape[0] == graph.number_of_edges()
+                graph.edata['_edge_weight'] = edge_weight
+                aggregate_fn = fn.u_mul_e('h', '_edge_weight', 'm')
+
+            feat_src, feat_dst = expand_as_pair(feat, graph)
+            graph.srcdata['h'] = feat_src
+            graph.update_all(aggregate_fn, _reducer('m', 'neigh'))
+            # print('in egcn_h.py')
+            rst = (1 + self.eps) * feat_dst + graph.dstdata['neigh']
+
+            
+
+            # if self.apply_func is not None:
+            #     rst = self.apply_func(rst)
+            # # activation
+            # if self.activation is not None:
+            #     rst = self.activation(rst)
+            return rst
 
 class mat_GRU_gate(torch.nn.Module):
     def __init__(self,rows,cols,activation):
