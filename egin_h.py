@@ -164,13 +164,13 @@ class GRCU_GIN(torch.nn.Module):
             # 2層目
             GIN_W2 = self.evolve_weight2(GIN_W2,first_node_embs,mask_list[t])     
             second_node_embs = self.activation(F.linear(first_node_embs,GIN_W2.t(),W2_bias))
-            # second_node_embs = self.activation(node_embs.matmul(GIN_W2)) # + W2_bias
+            # second_node_embs = self.activation(first_node_embs.matmul(GIN_W2)) # + W2_bias
             
 
             # 3層目
             GIN_W3 = self.evolve_weight3(GIN_W3,second_node_embs,mask_list[t])     
             last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))
-            # last_node_embs = self.activation(node_embs.matmul(GIN_W3)) # + W3_bias
+            # last_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
 
 
             out_seq.append(last_node_embs)
