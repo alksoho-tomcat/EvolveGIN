@@ -86,17 +86,27 @@ class GRCU_GIN(torch.nn.Module):
         cell_args.rows = args.out_feats
         self.evolve_weight2 = mat_GRU_cell(cell_args)
 
+        self.evolve_weight3 = mat_GRU_cell(cell_args)
+
         self.activation = self.args.activation
         
-        # これを外すとoptimizer got an empty parameter listのエラーが出る 
+        # 1層目
         self.GIN_init_W1 = Parameter(torch.Tensor(self.args.in_feats,self.args.out_feats))
-        self.GIN_init_W2 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
         self.W1_init_bias = Parameter(torch.Tensor(self.args.out_feats))
-        self.W2_init_bias = Parameter(torch.Tensor(self.args.out_feats))
         self.reset_param(self.GIN_init_W1)
-        self.reset_param(self.GIN_init_W2)
         self.reset_bias(self.W1_init_bias)
+
+        # 2層目
+        self.GIN_init_W2 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        self.W2_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        self.reset_param(self.GIN_init_W2)
         self.reset_bias(self.W2_init_bias)
+
+        # 3層目
+        self.GIN_init_W3 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        self.W3_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        self.reset_param(self.GIN_init_W3)
+        self.reset_bias(self.W3_init_bias)
 
     def reset_param(self,t):
         #Initialize based on the number of columns
@@ -110,12 +120,15 @@ class GRCU_GIN(torch.nn.Module):
     # GIN
     def forward(self,A_list,node_embs_list,mask_list):
         GIN_W1 = self.GIN_init_W1
-        GIN_W2 = self.GIN_init_W2
         W1_bias = self.W1_init_bias
+
+        GIN_W2 = self.GIN_init_W2
         W2_bias = self.W2_init_bias
+
+        GIN_W3 = self.GIN_init_W3
+        W3_bias = self.W3_init_bias
         # print(mask_list)
         out_seq = []
-        hidden_seq = []
         for t,Ahat in enumerate(A_list):
             # print('t is ',t)
             # print('hidden_state size is',hidden_state.size())
@@ -123,53 +136,35 @@ class GRCU_GIN(torch.nn.Module):
        
             # グラフのノードリストをAhatから作成
             graph_node_list = Ahat._indices()
-
             u, v = graph_node_list[0], graph_node_list[1]
-            # # dglをcpuで動かす
-            # u = u.to('cpu')
-            # v = v.to('cpu')
+            
             # dgl.graphでグラフ作成
             g = dgl.graph((u,v),num_nodes=Ahat.size(0))
-            # g1 = g.to('cuda:0')
-            # g = g.to('cpu')
-
             
             is_sparse_coo = str(node_embs.layout)
 
             if is_sparse_coo == 'torch.sparse_coo':
-                # print(' coo')
                 feat = node_embs.to_dense()
             else:
-                # print(' not coo')
                 feat = node_embs
-            # print(' dense ok')
-            # # dglをcpuで動かす
-            # feat = feat.to('cpu')
-            # print(' feat ok')
 
-
-            # lin = nn.Linear(feat.size()[1],100)
-
-            
+            # aggregate層設定
             conv = GINConv('sum').to('cuda') # learn_eps = True)
-
-            
-
-            GIN_W1 = self.evolve_weight1(GIN_W1,node_embs,mask_list[t])
-            # print('  GIN_W1 size is',GIN_W1.size())
-            
-
+            # aggregation
             node_embs = conv(g, feat)
-            # node_embs = node_embs.to('cuda')
 
-            new_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))
-            # print('  fist_node_embs size is',node_embs.size())
-            GIN_W2 = self.evolve_weight2(GIN_W2,new_node_embs,mask_list[t])
-            # print('GIN_W2 size is',GIN_W2.size())
-            last_node_embs = self.activation(F.linear(new_node_embs,GIN_W2.t(),W2_bias))
-            # print('  last_node_embs size is',last_node_embs.size())
+            # 1層目
+            GIN_W1 = self.evolve_weight1(GIN_W1,node_embs,mask_list[t])            
+            first_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))           
 
-  
+            # 2層目
+            GIN_W2 = self.evolve_weight2(GIN_W2,first_node_embs,mask_list[t])     
+            second_node_embs = self.activation(F.linear(first_node_embs,GIN_W2.t(),W2_bias))
+            
+
+            # 3層目
+            GIN_W3 = self.evolve_weight3(GIN_W3,second_node_embs,mask_list[t])     
+            last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))
 
 
             out_seq.append(last_node_embs)
