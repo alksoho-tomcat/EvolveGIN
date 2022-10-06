@@ -12,45 +12,27 @@ import torch.nn.functional as F
 import dgl.function as fn
 from dgl.utils import expand_as_pair
 
-# GRUバージョン
+# LSTMバージョン
 
 class EGCN(torch.nn.Module):
     def __init__(self, args, activation, device='cpu', skipfeats=False):
         super().__init__()
         GRCU_args = u.Namespace({})
 
-        feats = [args.feats_per_node,   # in yaml, 100 min: 50, max: 256
-                 args.layer_1_feats,    # in yaml, 100 min: 10, max: 200
-                 args.layer_2_feats]    # in yaml, 100
+        feats = [args.feats_per_node,
+                 args.layer_1_feats,
+                 args.layer_2_feats]
         self.device = device
         self.skipfeats = skipfeats
         self.GRCU_layers = []
         self._parameters = nn.ParameterList()
-        for i in range(1,len(feats)):   # exampleだとi = 1, 2の2層
-            GRCU_args = u.Namespace({'in_feats' : feats[i-1], # ノード数で固定したいfeats[i-1]
+        for i in range(1,len(feats)):
+            GRCU_args = u.Namespace({'in_feats' : feats[i-1],
                                      'out_feats': feats[i],
                                      'activation': activation})
 
-            grcu_i = GRCU_GIN(GRCU_args)
-            # print (i,'grcu_i', grcu_i)
-            # # 出力例
-            # # 1 grcu_i GRCU(
-            # #   (evolve_weights): mat_GRU_cell(
-            # #     (update): mat_GRU_gate(
-            # #       (activation): Sigmoid()
-            # #     )
-            # #     (reset): mat_GRU_gate(
-            # #       (activation): Sigmoid()
-            # #     )
-            # #     (htilda): mat_GRU_gate(
-            # #       (activation): Tanh()
-            # #     )
-            # #     (choose_topk): TopK()
-            # #   )
-            # #   (activation): RReLU(lower=0.125, upper=0.3333333333333333)
-            # # )
-            # # 2 つづく
-
+            grcu_i = GRCU(GRCU_args)
+            #print (i,'grcu_i', grcu_i)
             self.GRCU_layers.append(grcu_i.to(self.device))
             self._parameters.extend(list(self.GRCU_layers[-1].parameters()))
 
@@ -61,7 +43,7 @@ class EGCN(torch.nn.Module):
         node_feats= Nodes_list[-1]
 
         for unit in self.GRCU_layers:
-            Nodes_list = unit(A_list,Nodes_list,nodes_mask_list)
+            Nodes_list = unit(A_list,Nodes_list)#,nodes_mask_list)
 
         out = Nodes_list[-1]
         if self.skipfeats:
@@ -69,10 +51,7 @@ class EGCN(torch.nn.Module):
         return out
 
 
-
-
-# GIN用GRCU        
-class GRCU_GIN(torch.nn.Module):
+class GRCU(torch.nn.Module):
     def __init__(self,args):
         super().__init__()
         self.args = args
@@ -80,19 +59,20 @@ class GRCU_GIN(torch.nn.Module):
         cell_args.rows = args.in_feats
         cell_args.cols = args.out_feats
 
-        # W1 GRU
+        # W1 LSTM
         self.evolve_weight1 = mat_GRU_cell(cell_args)
 
         # 2層目のinputの隠れ層似合わせるためにrowsを変更
         cell_args.rows = args.out_feats
 
-        # W2 GRU
+        # W2 LSTM
         self.evolve_weight2 = mat_GRU_cell(cell_args)
-        # W3 GRU
+        # W3 LSTM
         self.evolve_weight3 = mat_GRU_cell(cell_args)
 
         self.activation = self.args.activation
         
+
         # 1層目
         self.GIN_init_W1 = Parameter(torch.Tensor(self.args.in_feats,self.args.out_feats))
         self.W1_init_bias = Parameter(torch.Tensor(self.args.out_feats))
@@ -120,8 +100,8 @@ class GRCU_GIN(torch.nn.Module):
         stdv = 1. / math.sqrt(t.size(0))
         t.data.uniform_(-stdv,stdv)
     
-    # GIN
-    def forward(self,A_list,node_embs_list,mask_list):
+
+    def forward(self,A_list,node_embs_list):#,mask_list):
         GIN_W1 = self.GIN_init_W1
         W1_bias = self.W1_init_bias
 
@@ -157,16 +137,16 @@ class GRCU_GIN(torch.nn.Module):
             node_embs = conv(g, feat)
 
             # 1層目
-            GIN_W1 = self.evolve_weight1(GIN_W1,node_embs,mask_list[t])            
+            GIN_W1 = self.evolve_weight1(GIN_W1)# ,node_embs,mask_list[t])            
             first_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))           
 
             # 2層目
-            GIN_W2 = self.evolve_weight2(GIN_W2,first_node_embs,mask_list[t])     
+            GIN_W2 = self.evolve_weight2(GIN_W2)# ,first_node_embs,mask_list[t])     
             second_node_embs = self.activation(F.linear(first_node_embs,GIN_W2.t(),W2_bias))
             
 
             # 3層目
-            GIN_W3 = self.evolve_weight3(GIN_W3,second_node_embs,mask_list[t])     
+            GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])     
             last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))
 
 
@@ -175,51 +155,7 @@ class GRCU_GIN(torch.nn.Module):
         return out_seq
 
 
-class GINConv(torch.nn.Module):
-    def __init__(self,
-                 apply_func=None,
-                 aggregator_type='sum',
-                 init_eps=0,
-                 learn_eps=False,
-                 activation=None):
-        super(GINConv, self).__init__()
-        self.apply_func = apply_func
-        self._aggregator_type = aggregator_type
-        self.activation = activation
-        if aggregator_type not in ('sum', 'max', 'mean'):
-            raise KeyError(
-                'Aggregator type {} not recognized.'.format(aggregator_type))
-        # to specify whether eps is trainable or not.
-        if learn_eps:
-            self.eps = torch.nn.Parameter(torch.FloatTensor([init_eps]))
-        else:
-            self.register_buffer('eps', torch.FloatTensor([init_eps]))
 
-    def forward(self, graph, feat, edge_weight=None):
-        _reducer = getattr(fn, self._aggregator_type)
-        with graph.local_scope():
-            aggregate_fn = fn.copy_src('h', 'm')
-            if edge_weight is not None:
-                assert edge_weight.shape[0] == graph.number_of_edges()
-                graph.edata['_edge_weight'] = edge_weight
-                aggregate_fn = fn.u_mul_e('h', '_edge_weight', 'm')
-
-            feat_src, feat_dst = expand_as_pair(feat, graph)
-            graph.srcdata['h'] = feat_src
-            graph.update_all(aggregate_fn, _reducer('m', 'neigh'))
-            # print('in egcn_h.py')
-            rst = (1 + self.eps) * feat_dst + graph.dstdata['neigh']
-
-            
-
-            # if self.apply_func is not None:
-            #     rst = self.apply_func(rst)
-            # # activation
-            # if self.activation is not None:
-            #     rst = self.activation(rst)
-            return rst
-
-# GRUの定義
 class mat_GRU_cell(torch.nn.Module):
     def __init__(self,args):
         super().__init__()
@@ -238,9 +174,10 @@ class mat_GRU_cell(torch.nn.Module):
         
         self.choose_topk = TopK(feats = args.rows,
                                 k = args.cols)
-    # GRUの順伝播(式そのまま)
-    def forward(self,prev_Q,prev_Z,mask):
-        z_topk = self.choose_topk(prev_Z,mask)
+
+    def forward(self,prev_Q):#,prev_Z,mask):
+        # z_topk = self.choose_topk(prev_Z,mask)
+        z_topk = prev_Q
 
         update = self.update(z_topk,prev_Q)
         reset = self.reset(z_topk,prev_Q)
@@ -312,47 +249,3 @@ class TopK(torch.nn.Module):
 
         #we need to transpose the output
         return out.t()
-
-
-
-# GCN用GRCU 
-class GRCU(torch.nn.Module):
-    def __init__(self,args):
-        super().__init__()
-        self.args = args
-        cell_args = u.Namespace({})
-        cell_args.rows = args.in_feats
-        cell_args.cols = args.out_feats
-
-        self.evolve_weights = mat_GRU_cell(cell_args)
-
-        self.activation = self.args.activation
-        self.GCN_init_weights = Parameter(torch.Tensor(self.args.in_feats,self.args.out_feats))
-        self.reset_param(self.GCN_init_weights)
-
-    def reset_param(self,t):
-        #Initialize based on the number of columns
-        stdv = 1. / math.sqrt(t.size(1))
-        t.data.uniform_(-stdv,stdv)
-    
-    # GCNか? ほぼ確定
-    def forward(self,A_list,node_embs_list,mask_list):
-        GCN_weights = self.GCN_init_weights
-        out_seq = []
-        for t,Ahat in enumerate(A_list):
-            # print('t is ',t)    # default 0~5 yaml num_hist_stepsの値
-
-            # # nodeの数はsbmでは1000個 
-            print('Ahat is ',Ahat)  
-
-            node_embs = node_embs_list[t]
-
-            #first evolve the weights from the initial and use the new weights with the node_embs
-            # mask_list[t]はtop_kで使うので考えなくてよし
-            GCN_weights = self.evolve_weights(GCN_weights,node_embs,mask_list[t])
-            # GCNの式のまま /sigma(Ahat, H, W)
-            node_embs = self.activation(Ahat.matmul(node_embs.matmul(GCN_weights)))
-
-            out_seq.append(node_embs)
-
-        return out_seq

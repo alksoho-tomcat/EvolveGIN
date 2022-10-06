@@ -24,6 +24,7 @@ import models as mls
 import egcn_h
 import egcn_o
 import egin_h
+import egin_o
 
 
 import splitter as sp
@@ -54,16 +55,16 @@ def build_random_hyper_params(args):
 	# まとめて実験するようのモデル選択か?
 	# 無視
 	if args.model == 'all':
-		model_types = ['gcn', 'egcn_o', 'egcn_h','egin_h', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
+		model_types = ['gcn', 'egcn_o', 'egcn_h','egin_h','egin_0', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
 		args.model=model_types[args.rank]
 	elif args.model == 'all_nogcn':
-		model_types = ['egcn_o', 'egcn_h','egin_h', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
+		model_types = ['egcn_o', 'egcn_h','egin_h','egin_0', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
 		args.model=model_types[args.rank]
 	elif args.model == 'all_noegcn3':
-		model_types = ['gcn', 'egcn_h', 'egin_h', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
+		model_types = ['gcn', 'egcn_h', 'egin_h','egin_0', 'gruA', 'gruB','egcn','lstmA', 'lstmB']
 		args.model=model_types[args.rank]
 	elif args.model == 'all_nogruA':
-		model_types = ['gcn', 'egcn_o', 'egcn_h','egin_h', 'gruB','egcn','lstmA', 'lstmB']
+		model_types = ['gcn', 'egcn_o', 'egcn_h','egin_0','egin_h', 'gruB','egcn','lstmA', 'lstmB']
 		args.model=model_types[args.rank]
 		args.model=model_types[args.rank]
 	elif args.model == 'saveembs':
@@ -175,12 +176,14 @@ def build_gcn(args,tasker):
 			return egcn.EGCN(gcn_args, activation = torch.nn.RReLU()).to(args.device)
 		elif args.model == 'egcn_h':	# GRU deviceはegcn_h.pyでcpuを選択
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
-		elif args.model == 'egin_h':	# EvolveGIN
+		elif args.model == 'egin_h':	# EvolveGIN_H
 			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'skipfeatsegcn_h':
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device, skipfeats=True)
 		elif args.model == 'egcn_o':	# LSTM deviceはegcn_i.pyでcpuを選択
 			return egcn_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+		elif args.model == 'egin_o':	# EvolveGIN_O
+			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		else:
 			raise NotImplementedError('need to finish modifying the models')
 
