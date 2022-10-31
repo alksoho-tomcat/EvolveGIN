@@ -26,6 +26,11 @@ class EGCN(torch.nn.Module):
         self.skipfeats = skipfeats
         self.GRCU_layers = []
         self._parameters = nn.ParameterList()
+        self.activation = activation
+
+        self.linear_0 = nn.Linear(162,args.layer_1_feats)
+        self.linear_last = nn.Linear(args.layer_2_feats,args.layer_2_feats)
+
         for i in range(1,len(feats)):   # exampleだとi = 1, 2の2層
             GRCU_args = u.Namespace({'in_feats' : feats[i-1], # ノード数で固定したいfeats[i-1]
                                      'out_feats': feats[i],
@@ -69,9 +74,8 @@ class EGCN(torch.nn.Module):
         # L=0のグラフ埋め込み
         for node_embs in Nodes_list:
             feat = node_embs.to_dense()
-            lin = nn.Linear(162,100).to('cuda')
             graph_emb = torch.sum(feat,0)
-            out_graph_emb = torch.tanh(lin(graph_emb))
+            out_graph_emb = self.activation(self.linear_0(graph_emb))
             graph_emb_l0_list.append(out_graph_emb)
         
         # l=0をlistにappend
@@ -84,15 +88,14 @@ class EGCN(torch.nn.Module):
             # グラフ埋め込みをtensorで格納
             graph_emb_list.append(torch.stack(graph_emb_seq[:],0))
         
-        # 2 * t * 100のグラフ埋め込みのtensorを作成
+        # num_layer * t * 100のグラフ埋め込みのtensorを作成
         graph_emb_tensors = torch.stack(graph_emb_list[:],0)
 
         # 書くグラフ埋め込みの総和を取り、t * 100のtensorを作成 
         out_graph_embs_tensor = torch.sum(graph_emb_tensors,0)
 
         # linear層通過
-        lin2 = nn.Linear(100,100).to('cuda')
-        out_graph_embs_tensor = torch.tanh(lin2(out_graph_embs_tensor))
+        out_graph_embs_tensor = self.activation(self.linear_last(out_graph_embs_tensor))
         
 
         # 最新の埋め込みを習得
@@ -129,7 +132,11 @@ class GRCU_GIN(torch.nn.Module):
         self.evolve_weight3 = mat_GRU_cell(cell_args)
 
         self.activation = self.args.activation
+
+        # linear層
+        self.linear = nn.Linear(self.args.out_feats, self.args.out_feats)
         
+
         # 1層目
         self.GIN_init_W1 = Parameter(torch.Tensor(self.args.in_feats,self.args.out_feats))
         self.W1_init_bias = Parameter(torch.Tensor(self.args.out_feats))
@@ -218,15 +225,12 @@ class GRCU_GIN(torch.nn.Module):
             graph_emb = torch.sum(last_node_embs,0)
 
             # linearを通過
-            lin = nn.Linear(100,100).to('cuda')
-            out_graph_emb = torch.tanh(lin(graph_emb))
+            out_graph_emb = self.activation(self.linear(graph_emb))
             
             # print('out_graph_emb size is',out_graph_emb.size())
             # print('graph_emb is',graph_emb)
 
             out_g_emb_seq.append(out_graph_emb)
-
-
 
             out_seq.append(last_node_embs)
     
