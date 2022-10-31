@@ -42,10 +42,47 @@ class EGCN(torch.nn.Module):
     def forward(self,A_list, Nodes_list,nodes_mask_list):
         node_feats= Nodes_list[-1]
 
-        for unit in self.GRCU_layers:
-            Nodes_list = unit(A_list,Nodes_list)#,nodes_mask_list)
+        # 注意 linnerのサイズはマニュアルで設定、のちのち自動設定したい
 
-        out = Nodes_list[-1]
+        # グラフ埋め込みを格納するリスト
+        graph_emb_l0_list = []
+        graph_emb_list = []
+
+        # L=0のグラフ埋め込み
+        for node_embs in Nodes_list:
+            feat = node_embs.to_dense()
+            lin = nn.Linear(162,100).to('cuda')
+            graph_emb = torch.sum(feat,0)
+            out_graph_emb = torch.tanh(lin(graph_emb))
+            graph_emb_l0_list.append(out_graph_emb)
+        
+        # l=0をlistにappend
+        graph_emb_list.append(torch.stack(graph_emb_l0_list[:],0))
+
+        
+        # EvolveGIN_Oのレイヤーごとにノード、グラフ埋め込みを取得
+        for unit in self.GRCU_layers:
+            Nodes_list, graph_emb_seq = unit(A_list,Nodes_list)#,nodes_mask_list)
+            # グラフ埋め込みをtensorで格納
+            graph_emb_list.append(torch.stack(graph_emb_seq[:],0))
+        
+        # 2 * t * 100のグラフ埋め込みのtensorを作成
+        graph_emb_tensors = torch.stack(graph_emb_list[:],0)
+
+        # 書くグラフ埋め込みの総和を取り、t * 100のtensorを作成 
+        out_graph_embs_tensor = torch.sum(graph_emb_tensors,0)
+
+        # linear層通過
+        lin2 = nn.Linear(100,100).to('cuda')
+        out_graph_embs_tensor = torch.tanh(lin2(out_graph_embs_tensor))
+        
+
+        # 最新の埋め込みを習得
+        out_node_emb = Nodes_list[-1]
+        out_graph_emb = out_graph_embs_tensor[-1]
+        # 出力する埋め込みを作成        
+        out = out_node_emb + out_graph_emb
+
         if self.skipfeats:
             out = torch.cat((out,node_feats), dim=1)   # use node_feats.to_dense() if 2hot encoded input 
         return out
@@ -111,7 +148,12 @@ class GRCU(torch.nn.Module):
         GIN_W3 = self.GIN_init_W3
         W3_bias = self.W3_init_bias
         # print(mask_list)
+
+        # ノード埋め込み格納用リスト
         out_seq = []
+
+        # グラフ埋め込み格納用リスト
+        out_g_emb_seq = []
         for t,Ahat in enumerate(A_list):
             # print('t is ',t)
             # print('hidden_state size is',hidden_state.size())
@@ -138,7 +180,7 @@ class GRCU(torch.nn.Module):
 
             # 1層目
             GIN_W1 = self.evolve_weight1(GIN_W1)# ,node_embs,mask_list[t])            
-            # first_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))           
+            #first_node_embs = self.activation(F.linear(node_embs,GIN_W1.t(),W1_bias))           
             first_node_embs = self.activation(node_embs.matmul(GIN_W1)) # + W1_bias
 
             # 2層目
@@ -152,10 +194,22 @@ class GRCU(torch.nn.Module):
             # last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))     
             last_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
 
+            
+            # グラフ埋め込み作成
+            graph_emb = torch.sum(last_node_embs,0)
+
+            # linearを通過
+            lin = nn.Linear(100,100).to('cuda')
+            out_graph_emb = torch.tanh(lin(graph_emb))
+            
+            # print('out_graph_emb size is',out_graph_emb.size())
+            # print('graph_emb is',graph_emb)
+
+            out_g_emb_seq.append(out_graph_emb)
 
             out_seq.append(last_node_embs)
     
-        return out_seq
+        return out_seq, out_g_emb_seq
 
 
 

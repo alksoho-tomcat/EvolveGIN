@@ -25,6 +25,8 @@ import egcn_h
 import egcn_o
 import egin_h
 import egin_o
+import egin_h_v2
+import egin_o_v2
 
 
 import splitter as sp
@@ -176,13 +178,17 @@ def build_gcn(args,tasker):
 			return egcn.EGCN(gcn_args, activation = torch.nn.RReLU()).to(args.device)
 		elif args.model == 'egcn_h':	# GRU deviceはegcn_h.pyでcpuを選択
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
-		elif args.model == 'egin_h':	# EvolveGIN_H
+		elif args.model == 'egin_h':	# EvolveGIN_H_v2
+			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+		elif args.model == 'egin_h_v2':	# EvolveGIN_H
 			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'skipfeatsegcn_h':
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device, skipfeats=True)
 		elif args.model == 'egcn_o':	# LSTM deviceはegcn_i.pyでcpuを選択
 			return egcn_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'egin_o':	# EvolveGIN_O
+			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+		elif args.model == 'egin_o_v2':	# EvolveGIN_O_v2
 			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		else:
 			raise NotImplementedError('need to finish modifying the models')
