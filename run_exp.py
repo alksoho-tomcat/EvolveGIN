@@ -160,6 +160,8 @@ def build_gcn(args,tasker):
 	# 静的なモデル
 	if args.model == 'gcn':
 		return mls.Sp_GCN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
+	elif args.model == 'gin':
+		return mls.Sp_GIN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
 	elif args.model == 'skipgcn':
 		return mls.Sp_Skip_GCN(gcn_args,activation = torch.nn.RReLU()).to(args.device)
 	elif args.model == 'skipfeatsgcn':
@@ -178,9 +180,9 @@ def build_gcn(args,tasker):
 			return egcn.EGCN(gcn_args, activation = torch.nn.RReLU()).to(args.device)
 		elif args.model == 'egcn_h':	# GRU deviceはegcn_h.pyでcpuを選択
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
-		elif args.model == 'egin_h':	# EvolveGIN_H_v2
+		elif args.model == 'egin_h':	# EvolveGIN_H
 			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
-		elif args.model == 'egin_h_v2':	# EvolveGIN_H
+		elif args.model == 'egin_h_v2':	# EvolveGIN_H_v2
 			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'skipfeatsegcn_h':
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device, skipfeats=True)

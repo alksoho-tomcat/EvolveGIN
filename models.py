@@ -12,7 +12,7 @@ from dgl.nn import GINConv
 from torch.nn.functional import relu
 
 # GCNクラス
-class Sp_GCN(torch.nn.Module):
+class Sp_GIN(torch.nn.Module):
     # インスタンスを作成
     def __init__(self,args,activation):
         super().__init__()
@@ -21,12 +21,18 @@ class Sp_GCN(torch.nn.Module):
         # レイヤー数
         self.num_layers = args.num_layers
 
-        # レイヤー
-        self.lin1 = nn.Linear(162, args.layer_1_feats)
-        self.conv1 = GINConv(self.lin1,'sum')
+        # graph_emb linnear
+        self.g_emb_linear0 = nn.Linear(162,args.layer_1_feats)
+        self.g_emb_linear1 = nn.Linear(args.layer_1_feats, args.layer_2_feats)
+        self.g_emb_linear2 = nn.Linear(args.layer_1_feats, args.layer_2_feats)
+        self.g_emb_linear_last = nn.Linear(args.layer_1_feats, args.layer_2_feats)
 
-        self.lin2 = nn.Linear(args.layer_1_feats, args.layer_2_feats) 
-        self.conv2 = GINConv(self.lin2, 'sum') 
+        # GINConvレイヤー
+        self.node_emb_linear1 = nn.Linear(162, args.layer_1_feats)
+        self.conv1 = GINConv(self.node_emb_linear1,'sum')
+
+        self.node_emb_linear2 = nn.Linear(args.layer_1_feats, args.layer_2_feats) 
+        self.conv2 = GINConv(self.node_emb_linear2, 'sum') 
 
 
         # # 重み
@@ -48,21 +54,15 @@ class Sp_GCN(torch.nn.Module):
 
     # 順伝播ステップ GIN
     def forward(self,A_list, Nodes_list, nodes_mask_list):
-        
         node_feats = Nodes_list[-1]
-        # print('node_feats is',node_feats)
         graph_node_list = A_list[-1]._indices()
-        # print('graph_node_list is',graph_node_list)
-
         u, v = graph_node_list[0], graph_node_list[1]
-        u = u.to('cpu')
-        v = v.to('cpu')
-
         # dgl.graphでグラフ作成
-        g = dgl.graph((u,v))
-        g = g.to('cpu')
-        # print(g.device)
-        # print(' graph ok')
+        g = dgl.graph((u,v),num_nodes=A_list[-1].size(0))
+
+        out_graph_emb_list = []
+
+
 
         is_sparse_coo = str(node_feats.layout)
 
@@ -72,60 +72,88 @@ class Sp_GCN(torch.nn.Module):
         else:
             # print(' not coo')
             feat = node_feats
-        # print(' dense ok')
-        
-        feat = feat.to('cpu')
-        # print(' feat ok')
         
 
-        last_l = self.conv1(g,feat).to('cpu')
-        last_l = self.conv2(g,last_l).to('cpu')
-        
-        return last_l
+        # l=0のグラフ埋め込み
+        graph_emb_0 = torch.sum(feat,0)
+        out_graph_emb_0 = self.activation(self.g_emb_linear0(graph_emb_0))
+        out_graph_emb_list.append(out_graph_emb_0)
+
+
+        # l=1のノード埋め込み
+        node_emb_1 = self.conv1(g,feat)
+
+        # l=1のグラフ埋め込み
+        graph_emb_1 = torch.sum(node_emb_1,0)
+        out_graph_emb_1 = self.activation(self.g_emb_linear1(graph_emb_1))
+        out_graph_emb_list.append(out_graph_emb_1)
+
+        # l=2のノード埋め込み
+        node_emb_2 = self.conv2(g,node_emb_1)
+
+        # l=2のグラフ埋め込み
+        graph_emb_2 = torch.sum(node_emb_2,0)
+        out_graph_emb_2 = self.activation(self.g_emb_linear2(graph_emb_2))
+        out_graph_emb_list.append(out_graph_emb_2)
+
+
+        # 各層のグラフ埋め込みを足し合わせ+Linear
+        # tensor(3, 100)にしたい!→なってる
+        out_graph_emb_tensors = torch.stack(out_graph_emb_list[:],0)
+        # print('out_graph_emb_tensors size is',out_graph_emb_tensors.size())
+        # tensor(100)にしたい!→なってる
+        out_graph_emb_tensor_sum = torch.sum(out_graph_emb_tensors,0)
+        # print('out_graph_emb_tensor_sum size is',out_graph_emb_tensor_sum.size())
+        # linear
+        out_graph_emb_tensor_last = self.activation(self.g_emb_linear_last(out_graph_emb_tensor_sum))
+
+        out = node_emb_2 + out_graph_emb_tensor_last
+        # print('out size is',out.size())        
+        return out
     
-    ## 元バージョン
-    # class Sp_GCN(torch.nn.Module):
-    # # インスタンスを作成
-    # def __init__(self,args,activation):
-    #     super().__init__()
-    #     # 活性化関数
-    #     self.activation = activation
-    #     # レイヤー数
-    #     self.num_layers = args.num_layers
-    #     # 重み
-    #     self.w_list = nn.ParameterList()
+    # 元バージョン
+class Sp_GCN(torch.nn.Module):
+    # インスタンスを作成
+    def __init__(self,args,activation):
+        super().__init__()
+        # 活性化関数
+        self.activation = activation
+        # レイヤー数
+        self.num_layers = args.num_layers
+        # 重み
+        self.w_list = nn.ParameterList()
 
-    #     # レイヤー数分パラメータをリストに追加
-    #     for i in range(self.num_layers):
-    #         if i==0:
-    #             # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
-    #             # exampleだとfeats_per_node = 100, layer_1_feats = 100
-    #             w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
-    #             u.reset_param(w_i)
-    #         else:
-    #             # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
-    #             # exampleだとlayer_1_feats = 100, layer_2_feats = 100
-    #             w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
-    #             u.reset_param(w_i)
-    #         self.w_list.append(w_i)
-    ## 順伝播ステップ
-    # def forward(self,A_list, Nodes_list, nodes_mask_list):
+        # レイヤー数分パラメータをリストに追加
+        for i in range(self.num_layers):
+            if i==0:
+                # feats_per_node, layer_1_featsはyaml gcn_paramertersで定義
+                # exampleだとfeats_per_node = 100, layer_1_feats = 100
+                w_i = Parameter(torch.Tensor(args.feats_per_node, args.layer_1_feats))
+                u.reset_param(w_i)
+            else:
+                # layer_1_feats, layer_2_featsはyaml gcn_paramertersで定義
+                # exampleだとlayer_1_feats = 100, layer_2_feats = 100
+                w_i = Parameter(torch.Tensor(args.layer_1_feats, args.layer_2_feats))
+                u.reset_param(w_i)
+            self.w_list.append(w_i)
+    # 順伝播ステップ
+    def forward(self,A_list, Nodes_list, nodes_mask_list):
         
-    #     node_feats = Nodes_list[-1]
-    #     #A_list: T, each element sparse tensor
-    #     #take only last adj matrix in time
-    #     Ahat = A_list[-1]
-    #     #Ahat: NxN ~ 30k
-    #     #sparse multiplication
+        node_feats = Nodes_list[-1]
+        #A_list: T, each element sparse tensor
+        #take only last adj matrix in time
+        Ahat = A_list[-1]
+        #Ahat: NxN ~ 30k
+        #sparse multiplication
 
-    #     # Ahat NxN
-    #     # self.node_embs = Nxk
-    #     #
-    #     # note(bwheatman, tfk): change order of matrix multiply
-    #     last_l = self.activation(Ahat.matmul(node_feats.matmul(self.w_list[0])))
-    #     for i in range(1, self.num_layers):
-    #         last_l = self.activation(Ahat.matmul(last_l.matmul(self.w_list[i])))
-    #     return last_l
+        # Ahat NxN
+        # self.node_embs = Nxk
+        #
+        # note(bwheatman, tfk): change order of matrix multiply
+        last_l = self.activation(Ahat.matmul(node_feats.matmul(self.w_list[0])))
+        for i in range(1, self.num_layers):
+            last_l = self.activation(Ahat.matmul(last_l.matmul(self.w_list[i])))
+        return last_l
 
 
 class Sp_Skip_GCN(Sp_GCN):
