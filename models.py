@@ -11,6 +11,20 @@ import dgl
 from dgl.nn import GINConv
 from torch.nn.functional import relu
 
+# MLPクラス
+class GIN_MLP(torch.nn.Module):
+    def __init__(self, in_dim, hid_dim, out_dim, activation):
+        super(GIN_MLP, self).__init__()
+        self.activation = activation
+        self.linear1 = nn.Linear(in_dim, hid_dim)
+        self.linear2 = nn.Linear(hid_dim, out_dim)
+
+    def forward(self, x):
+        # print('in mlp')
+        x = self.activation(self.linear1(x))
+        x = self.activation(self.linear2(x))
+        return x
+
 # GCNクラス
 class Sp_GIN(torch.nn.Module):
     # インスタンスを作成
@@ -28,11 +42,11 @@ class Sp_GIN(torch.nn.Module):
         self.g_emb_linear_last = nn.Linear(args.layer_1_feats, args.layer_2_feats)
 
         # GINConvレイヤー
-        self.node_emb_linear1 = nn.Linear(162, args.layer_1_feats)
-        self.conv1 = GINConv(self.node_emb_linear1,'sum')
+        self.node_emb_mlp1 = GIN_MLP(162, args.layer_1_feats, args.layer_1_feats,self.activation)
+        self.conv1 = GINConv(self.node_emb_mlp1,'sum')
 
-        self.node_emb_linear2 = nn.Linear(args.layer_1_feats, args.layer_2_feats) 
-        self.conv2 = GINConv(self.node_emb_linear2, 'sum') 
+        self.node_emb_mlp2 = GIN_MLP(args.layer_1_feats, args.layer_2_feats, args.layer_2_feats,self.activation) 
+        self.conv2 = GINConv(self.node_emb_mlp2, 'sum') 
 
 
         # # 重み
