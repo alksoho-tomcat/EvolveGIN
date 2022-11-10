@@ -183,7 +183,7 @@ def build_gcn(args,tasker):
 		elif args.model == 'egin_h':	# EvolveGIN_H
 			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'egin_h_v2':	# EvolveGIN_H_v2
-			return egin_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+			return egin_h_v2.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'skipfeatsegcn_h':
 			return egcn_h.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device, skipfeats=True)
 		elif args.model == 'egcn_o':	# LSTM deviceはegcn_i.pyでcpuを選択
@@ -191,7 +191,7 @@ def build_gcn(args,tasker):
 		elif args.model == 'egin_o':	# EvolveGIN_O
 			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'egin_o_v2':	# EvolveGIN_O_v2
-			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+			return egin_o_v2.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		else:
 			raise NotImplementedError('need to finish modifying the models')
 
