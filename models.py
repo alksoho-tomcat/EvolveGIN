@@ -311,6 +311,10 @@ class Classifier(torch.nn.Module):
             num_feats = args.gcn_parameters['lstm_l2_feats'] * 2
         else:
             num_feats = args.gcn_parameters['layer_2_feats'] * 2
+
+        if args.model == 'egin_o_v4':
+            num_feats = in_features * 2
+
         print ('CLS num_feats',num_feats)
 
         self.mlp = torch.nn.Sequential(torch.nn.Linear(in_features = num_feats,

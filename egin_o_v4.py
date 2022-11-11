@@ -84,8 +84,9 @@ class EGCN(torch.nn.Module):
         # 最新の埋め込みを習得
         out_node_emb = Nodes_list[-1]
         out_graph_emb = out_graph_embs_tensor[-1]
+        out_graph_emb_repeat = out_graph_emb.repeat(out_node_emb.size()[0],1)
         # 出力する埋め込みを作成        
-        out = out_node_emb + out_graph_emb
+        out = torch.cat((out_node_emb, out_graph_emb_repeat),1)
 
         if self.skipfeats:
             out = torch.cat((out,node_feats), dim=1)   # use node_feats.to_dense() if 2hot encoded input 
@@ -129,11 +130,11 @@ class GRCU(torch.nn.Module):
         self.reset_param(self.GIN_init_W2)
         self.reset_bias(self.W2_init_bias)
 
-        # 3層目
-        self.GIN_init_W3 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
-        self.W3_init_bias = Parameter(torch.Tensor(self.args.out_feats))
-        self.reset_param(self.GIN_init_W3)
-        self.reset_bias(self.W3_init_bias)
+        # # 3層目
+        # self.GIN_init_W3 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        # self.W3_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        # self.reset_param(self.GIN_init_W3)
+        # self.reset_bias(self.W3_init_bias)
 
     def reset_param(self,t):
         #Initialize based on the number of columns

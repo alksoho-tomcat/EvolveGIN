@@ -27,6 +27,8 @@ import egin_h
 import egin_o
 import egin_h_v2
 import egin_o_v2
+import egin_o_v3
+import egin_o_v4
 
 
 import splitter as sp
@@ -192,6 +194,10 @@ def build_gcn(args,tasker):
 			return egin_o.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		elif args.model == 'egin_o_v2':	# EvolveGIN_O_v2
 			return egin_o_v2.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+		elif args.model == 'egin_o_v3':	# EvolveGIN_O_v3
+			return egin_o_v3.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
+		elif args.model == 'egin_o_v4':	# EvolveGIN_O_v4
+			return egin_o_v4.EGCN(gcn_args, activation = torch.nn.RReLU(), device = args.device)
 		else:
 			raise NotImplementedError('need to finish modifying the models')
 
