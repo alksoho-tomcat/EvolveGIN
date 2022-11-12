@@ -79,6 +79,9 @@ class EGCN(torch.nn.Module):
         # 書くグラフ埋め込みの総和を取り、t * 100のtensorを作成 
         out_graph_embs_tensor = torch.sum(graph_emb_tensors,0)
 
+        # 正規化
+        out_graph_embs_tensor = out_graph_embs_tensor / torch.norm(out_graph_embs_tensor)
+
         # linear層通過
         out_graph_embs_tensor = self.activation(self.linear_last(out_graph_embs_tensor))
         
