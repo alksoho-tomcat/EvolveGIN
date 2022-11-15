@@ -27,11 +27,13 @@ class EGCN(torch.nn.Module):
         self.GRCU_layers = []
         self._parameters = nn.ParameterList()
         self.activation = activation
+        
+        # ハードコーディング データセット変える時注意
+        self.linear_0 = nn.Linear(162, args.layer_1_feats).to('cuda')
+        self.linear_last = nn.Linear(args.layer_2_feats * 3, args.layer_2_feats).to('cuda')
 
-        self.linear_0 = nn.Linear(162,args.layer_1_feats).to('cuda')
-        self.linear_last = nn.Linear(args.layer_2_feats,args.layer_2_feats).to('cuda')
-        # self.weight_param = nn.Parameter(torch.ones(1)).to('cuda')
-        self.weight_param = 0.01
+        # ハイパーパラメータ化(0%, 0.1%, 0.5%, 1%, 5% ? 暫定 11/15)
+        self.weight_param = 0
 
 
         for i in range(1,len(feats)):
@@ -73,14 +75,21 @@ class EGCN(torch.nn.Module):
             # グラフ埋め込みをtensorで格納
             graph_emb_list.append(torch.stack(graph_emb_seq[:],0))
         
-        # num_layer * t * 100のグラフ埋め込みのtensorを作成
-        graph_emb_tensors = torch.stack(graph_emb_list[:],0)
 
-        # 書くグラフ埋め込みの総和を取り、t * 100のtensorを作成 
-        out_graph_embs_tensor = torch.sum(graph_emb_tensors,0)
 
-        # 正規化
-        out_graph_embs_tensor = out_graph_embs_tensor / torch.norm(out_graph_embs_tensor)
+        # # num_layer * t * 100のグラフ埋め込みのtensorを作成
+        # graph_emb_tensors = torch.stack(graph_emb_list[:],0)
+
+        # # 書くグラフ埋め込みの総和を取り、t * 100のtensorを作成 
+        # out_graph_embs_tensor = torch.sum(graph_emb_tensors,0)
+
+        # # 正規化
+        # out_graph_embs_tensor = out_graph_embs_tensor / torch.norm(out_graph_embs_tensor)
+
+
+
+        # 各グラフ埋め込みをconcatし、t * (300 = size_layer * 100 )へ
+        out_graph_embs_tensor = torch.cat((graph_emb_list[:]),1)
 
         # linear層通過
         out_graph_embs_tensor = self.activation(self.linear_last(out_graph_embs_tensor))
@@ -89,6 +98,7 @@ class EGCN(torch.nn.Module):
         # 最新の埋め込みを習得
         out_node_emb = Nodes_list[-1]
         out_graph_emb = out_graph_embs_tensor[-1]
+
         # 出力する埋め込みを作成        
         out = out_node_emb + self.weight_param * out_graph_emb
 
@@ -118,8 +128,8 @@ class GRCU(torch.nn.Module):
 
         self.activation = self.args.activation
 
-        # linear層
-        self.linear = nn.Linear(self.args.out_feats, self.args.out_feats)
+        # # linear層
+        # self.linear = nn.Linear(self.args.out_feats, self.args.out_feats)
         
 
         # 1層目
@@ -209,10 +219,10 @@ class GRCU(torch.nn.Module):
 
             
             # グラフ埋め込み作成
-            graph_emb = torch.sum(last_node_embs,0)
+            out_graph_emb = torch.sum(last_node_embs,0)
 
-            # linearを通過
-            out_graph_emb = self.activation(self.linear(graph_emb))
+            # # linearを通過
+            # out_graph_emb = self.activation(self.linear(graph_emb))
             
             # print('out_graph_emb size is',out_graph_emb.size())
             # print('graph_emb is',graph_emb)
