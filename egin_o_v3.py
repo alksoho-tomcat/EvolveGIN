@@ -19,8 +19,11 @@ class EGCN(torch.nn.Module):
         super().__init__()
         GRCU_args = u.Namespace({})
 
+        # 5層(インプットを含める)
         feats = [args.feats_per_node,
                  args.layer_1_feats,
+                 args.layer_2_feats,
+                 args.layer_2_feats,
                  args.layer_2_feats]
         self.device = device
         self.skipfeats = skipfeats
@@ -30,9 +33,9 @@ class EGCN(torch.nn.Module):
         
         # ハードコーディング データセット変える時注意
         self.linear_0 = nn.Linear(162, args.layer_1_feats).to('cuda')
-        self.linear_last = nn.Linear(args.layer_2_feats * 3, args.layer_2_feats).to('cuda')
+        self.linear_last = nn.Linear(args.layer_2_feats * 6, args.layer_2_feats).to('cuda')
 
-        # ハイパーパラメータ化(0%, 0.1%, 0.5%, 1%, 5% ? 暫定 11/15)
+        # ハイパーパラメータ化(0, 1e-5, 1e-4, 1e-3, 1e-2)
         self.weight_param = 0
 
 
