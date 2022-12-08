@@ -156,6 +156,7 @@ class Link_Pred_Tasker():
 
 		
 		if 'all_edges' in kwargs.keys() and kwargs['all_edges'] == True:
+			# だいたいサイズはエッジありの9倍ぐらい
 			non_exisiting_adj = tu.get_all_non_existing_edges(adj = label_adj, tot_nodes = self.data.num_nodes)
 		else:
 			non_exisiting_adj = tu.get_non_existing_edges(adj = label_adj,

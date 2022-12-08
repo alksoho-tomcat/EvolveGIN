@@ -20,11 +20,20 @@ class EGCN(torch.nn.Module):
         GRCU_args = u.Namespace({})
 
         # 5層(インプットを含める)
+        # feats = [args.feats_per_node,
+        #          args.layer_1_feats,
+        #          args.layer_2_feats,
+        #          args.layer_2_feats,
+        #          args.layer_2_feats]
+
+        # 2層(単純に)
         feats = [args.feats_per_node,
                  args.layer_1_feats,
-                 args.layer_2_feats,
-                 args.layer_2_feats,
                  args.layer_2_feats]
+        
+        num_conv_layer = 2
+        num_linear_last = num_conv_layer + 1
+
         self.device = device
         self.skipfeats = skipfeats
         self.GRCU_layers = []
@@ -33,7 +42,7 @@ class EGCN(torch.nn.Module):
         
         # ハードコーディング データセット変える時注意
         self.linear_0 = nn.Linear(162, args.layer_1_feats).to('cuda')
-        self.linear_last = nn.Linear(args.layer_2_feats * 6, args.layer_2_feats).to('cuda')
+        self.linear_last = nn.Linear(args.layer_2_feats * num_linear_last, args.layer_2_feats).to('cuda')
 
         # ハイパーパラメータ化(0, 1e-5, 1e-4, 1e-3, 1e-2)
         self.weight_param = 0
@@ -127,7 +136,7 @@ class GRCU(torch.nn.Module):
         # W2 LSTM
         self.evolve_weight2 = mat_GRU_cell(cell_args)
         # # W3 LSTM
-        # self.evolve_weight3 = mat_GRU_cell(cell_args)
+        self.evolve_weight3 = mat_GRU_cell(cell_args)
 
         self.activation = self.args.activation
 
@@ -148,10 +157,10 @@ class GRCU(torch.nn.Module):
         self.reset_bias(self.W2_init_bias)
 
         # # 3層目
-        # self.GIN_init_W3 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
-        # self.W3_init_bias = Parameter(torch.Tensor(self.args.out_feats))
-        # self.reset_param(self.GIN_init_W3)
-        # self.reset_bias(self.W3_init_bias)
+        self.GIN_init_W3 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        self.W3_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        self.reset_param(self.GIN_init_W3)
+        self.reset_bias(self.W3_init_bias)
 
     def reset_param(self,t):
         #Initialize based on the number of columns
@@ -170,8 +179,8 @@ class GRCU(torch.nn.Module):
         GIN_W2 = self.GIN_init_W2
         W2_bias = self.W2_init_bias
 
-        # GIN_W3 = self.GIN_init_W3
-        # W3_bias = self.W3_init_bias
+        GIN_W3 = self.GIN_init_W3
+        W3_bias = self.W3_init_bias
         # print(mask_list)
 
         # ノード埋め込み格納用リスト
@@ -212,13 +221,13 @@ class GRCU(torch.nn.Module):
             # 2層目
             GIN_W2 = self.evolve_weight2(GIN_W2)# ,first_node_embs,mask_list[t])
             # second_node_embs = self.activation(F.linear(first_node_embs,GIN_W2.t(),W2_bias))
-            last_node_embs = self.activation(first_node_embs.matmul(GIN_W2)) # + W2_bias
+            second_node_embs = self.activation(first_node_embs.matmul(GIN_W2)) # + W2_bias
             
 
-            # # 3層目
-            # GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])
+            # 3層目
+            GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])
             # # last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))     
-            # last_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
+            last_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
 
             
             # グラフ埋め込み作成
