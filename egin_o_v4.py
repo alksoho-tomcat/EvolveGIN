@@ -135,13 +135,15 @@ class GRCU(torch.nn.Module):
         # W1 LSTM
         self.evolve_weight1 = mat_GRU_cell(cell_args)
 
-        # 2層目のinputの隠れ層似合わせるためにrowsを変更
+        # 2層目のinputの隠れ層に合わせるためにrowsを変更
         cell_args.rows = args.out_feats
 
         # W2 LSTM
         self.evolve_weight2 = mat_GRU_cell(cell_args)
         # # W3 LSTM
         self.evolve_weight3 = mat_GRU_cell(cell_args)
+        # # W4 LSTM
+        self.evolve_weight4 = mat_GRU_cell(cell_args)
 
         self.activation = self.args.activation
 
@@ -167,6 +169,12 @@ class GRCU(torch.nn.Module):
         self.reset_param(self.GIN_init_W3)
         self.reset_bias(self.W3_init_bias)
 
+        # # 4層目
+        self.GIN_init_W4 = Parameter(torch.Tensor(self.args.out_feats,self.args.out_feats))
+        self.W4_init_bias = Parameter(torch.Tensor(self.args.out_feats))
+        self.reset_param(self.GIN_init_W4)
+        self.reset_bias(self.W4_init_bias)
+
     def reset_param(self,t):
         #Initialize based on the number of columns
         stdv = 1. / math.sqrt(t.size(1))
@@ -186,6 +194,9 @@ class GRCU(torch.nn.Module):
 
         GIN_W3 = self.GIN_init_W3
         W3_bias = self.W3_init_bias
+
+        GIN_W4 = self.GIN_init_W4
+        W4_bias = self.W4_init_bias
         # print(mask_list)
 
         # ノード埋め込み格納用リスト
@@ -232,7 +243,14 @@ class GRCU(torch.nn.Module):
             # 3層目
             GIN_W3 = self.evolve_weight3(GIN_W3)# ,second_node_embs,mask_list[t])
             # # last_node_embs = self.activation(F.linear(second_node_embs,GIN_W3.t(),W3_bias))     
-            last_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
+            third_node_embs = self.activation(second_node_embs.matmul(GIN_W3)) # + W3_bias
+
+
+            # 4層目
+            GIN_W4 = self.evolve_weight4(GIN_W4)# ,second_node_embs,mask_list[t])
+            # # last_node_embs = self.activation(F.linear(second_node_embs,GIN_W4.t(),W4_bias))     
+            last_node_embs = self.activation(third_node_embs.matmul(GIN_W4)) # + W4_bias
+
 
             
             # グラフ埋め込み作成
