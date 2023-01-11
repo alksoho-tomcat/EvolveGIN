@@ -10,7 +10,7 @@ uc_irc_args:
 use_cuda: True
 use_logfile: True
 
-model: egin_o_v2
+model: egin_o_v4
 
 task: link_pred
 
@@ -22,7 +22,7 @@ save_node_embeddings: False
 train_proportion: 0.71
 dev_proportion: 0.1
 
-num_epochs: 50 #number of passes though the data
+num_epochs: 40 #number of passes though the data
 steps_accum_gradients: 1
 learning_rate: 0.001
 learning_rate_min: 0.0005
