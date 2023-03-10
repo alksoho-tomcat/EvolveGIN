@@ -41,8 +41,8 @@ class EGCN(torch.nn.Module):
         self.activation = activation
 
         # ハードコーディング データセット変える時注意
-        # sbm: 162, uc_irv:167, auto_syst:691
-        self.linear_0 = nn.Linear(167, args.layer_1_feats).to('cuda')
+        # sbm: 162, uc_irv:167, auto_syst:691, bitcoin_alpha:67, bitcoin_otc:145
+        self.linear_0 = nn.Linear(67, args.layer_1_feats).to('cuda')
         self.linear_last = nn.Linear(args.layer_2_feats * num_linear_last, args.layer_2_feats).to('cuda')
 
         # ハイパーパラメータ化(0, 1e-5, 1e-4, 1e-3, 1e-2)
